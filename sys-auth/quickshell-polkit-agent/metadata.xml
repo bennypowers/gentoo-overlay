@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		quickshell-polkit-agent is a lightweight polkit authentication agent
+		designed for integration with quickshell configurations. It provides
+		a simple IPC interface that allows quickshell to create custom
+		authentication dialogs while leveraging the secure polkit-qt backend
+		for actual authentication.
+
+		Features:
+		- Direct polkit-qt integration for security
+		- IPC communication with quickshell
+		- Custom authentication UI support
+		- Minimal resource usage
+		- Qt6 based architecture
+	</longdescription>
+	<use>
+	</use>
+</pkgmetadata>
