@@ -1,0 +1,38 @@
+--- a/src/targets/gpu/CMakeLists.txt
++++ b/src/targets/gpu/CMakeLists.txt
+@@ -182,6 +182,11 @@ file(GLOB JIT_GPU_SRCS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/jit/*.cpp)
+     set(MIOPEN_SRCS compile_miopen.cpp)
+ endif()
+
++set(MLIR_SRCS)
++if(MIGRAPHX_ENABLE_MLIR)
++    set(MLIR_SRCS mlir.cpp fuse_mlir.cpp)
++endif()
++
+ add_library(migraphx_gpu
+     analyze_streams.cpp
+     allocation_model.cpp
+@@ -196,7 +201,6 @@ add_library(migraphx_gpu
+     compiler.cpp
+     device_name.cpp
+     fuse_ck.cpp
+-    fuse_mlir.cpp
+     fuse_ops.cpp
+     gemm_impl.cpp
+     hip.cpp
+@@ -207,7 +211,6 @@ add_library(migraphx_gpu
+     logsoftmax.cpp
+     loop.cpp
+     lrn.cpp
+-    mlir.cpp
+     multinomial.cpp
+     no_device.cpp
+     nonzero.cpp
+@@ -227,6 +230,7 @@ add_library(migraphx_gpu
+     write_literals.cpp
+     ${JIT_GPU_SRCS}
+     ${MIOPEN_SRCS}
++    ${MLIR_SRCS}
+ )
+
+ set_target_properties(migraphx_gpu PROPERTIES EXPORT_NAME gpu)

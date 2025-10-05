@@ -46,11 +46,8 @@ DEPEND="
 "
 
 PATCHES=(
-	# "${FILESDIR}"/${PN}-5.4.2-add-missing-header.patch
-	# "${FILESDIR}"/${PN}-5.4.2-link-cblas.patch
-	# "${FILESDIR}"/${PN}-6.0.2-expand-isa-compatibility.patch
-	# "${FILESDIR}"/${PN}-6.3.0-no-git.patch
-	# "${FILESDIR}"/${PN}-6.3.0-find-cblas.patch
+	"${FILESDIR}"/${PN}-6.4.3-no-ck-jit.patch
+	"${FILESDIR}"/${PN}-6.4.3-conditional-mlir.patch
 )
 
 src_prepare() {
@@ -73,6 +70,7 @@ src_configure() {
 		-DAMDGPU_TARGETS="$(get_amdgpu_flags)"
 		-DCMAKE_INSTALL_INCLUDEDIR="include/migraphx"
 		-DMIGRAPHX_ENABLE_PYTHON="$(usex python ON OFF)"
+		-DMIGRAPHX_ENABLE_MLIR=OFF
 		-DBUILD_CLIENTS_SAMPLES=OFF
 		-DBUILD_WITH_PIP=OFF
 		-DLINK_BLIS=OFF
