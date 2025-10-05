@@ -1,0 +1,13 @@
+--- a/src/targets/gpu/include/migraphx/gpu/ck.hpp
++++ b/src/targets/gpu/include/migraphx/gpu/ck.hpp
+@@ -30,8 +30,8 @@
+
+ #include <migraphx/config.hpp>
+ #ifdef MIGRAPHX_USE_COMPOSABLEKERNEL
+-#include "ck/host/device_gemm_multiple_d.hpp"
+-#include "ck/host/device_batched_gemm_softmax_gemm.hpp"
++#include "ck/tensor_operation/gpu/device/device_gemm_multiple_d.hpp"
++#include "ck/tensor_operation/gpu/device/device_batched_gemm_softmax_gemm.hpp"
+ #endif
+
+ namespace migraphx {
