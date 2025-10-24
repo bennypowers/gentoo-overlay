@@ -3,3 +3,4 @@ md5-cache/
 distfiles/
 /packages/*
 .gentoo-data
+.claude/CLAUDE.md
