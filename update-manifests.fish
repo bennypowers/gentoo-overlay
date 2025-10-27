@@ -1,14 +1,13 @@
 #!/usr/bin/env fish
 # A fish script to update all Manifest files in a Gentoo repository.
 # Find every ebuild file in the current directory and its subdirectories,
-# and for each one, run the `ebuild manifest` command.
+# and for each one, run the `ebuild digest` command.
 
-# Check if the user is root.
-if [ (id -u) != "0" ]
-    echo "Error: This script must be run as root to update manifests."
-    echo "Please run with sudo: sudo ./update_manifests.fish"
-    exit 1
-end
+# Create a temporary DISTDIR to avoid needing sudo access to /var/cache/distfiles
+set -x DISTDIR /tmp/distfiles
+# Skip Gentoo mirrors and download directly from upstream sources
+set -x GENTOO_MIRRORS ""
+mkdir -p $DISTDIR
 
 # Find all ebuild files.
 # `find . -name "*.ebuild"` will list all ebuilds.
@@ -19,8 +18,8 @@ find . -name "*.ebuild" | while read -l ebuild_path
 
     # Run the ebuild command to update the manifest.
     # We use `ebuild` with the full path to the ebuild file.
-    # The `manifest` argument tells it to only update the Manifest file.
-    ebuild $ebuild_path manifest
+    # The `digest` argument tells it to fetch sources and update the Manifest file.
+    ebuild $ebuild_path digest
 end
 
 echo "All manifests have been updated."
