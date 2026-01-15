@@ -1,0 +1,14 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -320,11 +320,6 @@ endif()
+ # Threads
+ find_package(Threads REQUIRED)
+
+-# Gmic
+-if (ENABLE_SYSTEM_GMIC)
+-  find_package(Gmic REQUIRED CONFIG)
+-endif (ENABLE_SYSTEM_GMIC)
+-
+ ##############################
+ # Rules to build translation files (ui_*.ts)
+ ##############################
