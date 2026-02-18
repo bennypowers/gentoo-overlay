@@ -25,7 +25,7 @@ RDEPEND="${DEPEND}
 	net-misc/socat
 "
 BDEPEND="
-	dev-util/cmake
+	dev-build/cmake
 	dev-qt/qttools:6[linguist]
 "
 
