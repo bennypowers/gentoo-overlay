@@ -34,7 +34,7 @@ S="${WORKDIR}/quickshell-polkit-agent"
 src_unpack() {
 	# Copy from development directory  
 	mkdir -p "${S}" || die
-	cp -r /home/bennyp/Developer/quickshell-polkit-agent/* "${S}/" || die
+	cp -r --exclude=tests /home/bennyp/Developer/quickshell-polkit-agent/* "${S}/" || die
 }
 
 src_prepare() {
