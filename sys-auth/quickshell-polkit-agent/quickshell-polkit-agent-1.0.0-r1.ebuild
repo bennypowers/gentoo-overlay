@@ -1,4 +1,4 @@
-# Copyright 2025 Gentoo Authors
+# Copyright 2025 Benny Powers
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=8
@@ -8,14 +8,20 @@ inherit cmake
 DESCRIPTION="Polkit authentication agent with quickshell integration"
 HOMEPAGE="https://github.com/bennypowers/quickshell-polkit-agent"
 
-# Live ebuild using local development directory
-SRC_URI=""
-KEYWORDS="~amd64"
-RESTRICT="mirror fetch"
+if [[ ${PV} == 9999 ]]; then
+	inherit git-r3
+	EGIT_REPO_URI="https://github.com/bennypowers/quickshell-polkit-agent/"
+	KEYWORDS=""
+else
+	SRC_URI="https://github.com/bennypowers/quickshell-polkit-agent/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
+	S="${WORKDIR}/${PN}-${PV}"
+	KEYWORDS="~amd64"
+fi
 
 LICENSE="MIT"
 SLOT="0"
 IUSE=""
+RESTRICT="mirror"
 
 DEPEND="
 	dev-qt/qtbase:6
@@ -28,14 +34,6 @@ BDEPEND="
 	dev-util/cmake
 	dev-qt/qttools:6[linguist]
 "
-
-S="${WORKDIR}/quickshell-polkit-agent"
-
-src_unpack() {
-	# Copy from development directory  
-	mkdir -p "${S}" || die
-	cp -r /home/bennyp/Developer/quickshell-polkit-agent/* "${S}/" || die
-}
 
 src_prepare() {
 	cmake_src_prepare
@@ -50,11 +48,11 @@ src_configure() {
 
 src_install() {
 	cmake_src_install
-	
+
 	# Install quickshell component
 	insinto /usr/share/quickshell/components
 	doins "${S}/quickshell/PolkitAgent.qml"
-	
+
 	# Install examples
 	dodoc -r examples/
 }
