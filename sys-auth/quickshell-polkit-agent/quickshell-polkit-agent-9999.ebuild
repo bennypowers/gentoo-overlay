@@ -10,7 +10,7 @@ HOMEPAGE="https://github.com/bennypowers/quickshell-polkit-agent"
 
 # Live ebuild using local development directory
 SRC_URI=""
-KEYWORDS="~amd64"
+KEYWORDS=""
 RESTRICT="mirror fetch"
 
 LICENSE="MIT"
