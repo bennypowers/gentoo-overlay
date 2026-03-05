@@ -17,6 +17,14 @@ KEYWORDS="~amd64"
 DEPEND=">=dev-lang/go-1.13"
 RDEPEND=""
 
+src_prepare() {
+	default
+	# Upstream v5.9.7 ships vendored hebcal-go v0.11.0 but the code uses
+	# event.UserEvent which was added in v0.11.1; replace with our tarball.
+	rm -rf vendor || die
+	mv "${WORKDIR}/vendor" "${S}/vendor" || die
+}
+
 src_compile() {
 	export GOFLAGS="-mod=vendor"
 	emake all
