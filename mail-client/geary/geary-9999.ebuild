@@ -65,6 +65,7 @@ BDEPEND="
 	media-libs/gsound[vala]
 	app-text/libspelling[vala]
 	gui-libs/libadwaita:1[introspection,vala]
+	dev-libs/libpeas:2[vala]
 	app-crypt/libsecret[introspection,vala]
 	net-libs/libsoup:3.0[introspection,vala]
 "

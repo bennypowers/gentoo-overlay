@@ -5,7 +5,10 @@
 		<email>bennyp@tutanota.com</email>
 		<name>Benny Powers</name>
 	</maintainer>
+	<use>
+		<flag name="ytnef">Support Microsoft-proprietary TNEF attachments</flag>
+	</use>
 	<upstream>
-		<remote-id type="gitlab">GNOME/geary</remote-id>
+		<remote-id type="gnome-gitlab">GNOME/geary</remote-id>
 	</upstream>
 </pkgmetadata>
