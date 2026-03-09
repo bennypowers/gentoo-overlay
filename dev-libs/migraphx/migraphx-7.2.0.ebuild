@@ -19,7 +19,7 @@ S="${WORKDIR}/AMDMIGraphX-rocm-${PV}"
 
 LICENSE="BSD"
 SLOT="0/$(ver_cut 1-2)"
-KEYWORDS="~amd64"
+KEYWORDS=""
 IUSE="python"
 REQUIRED_USE="
 	${ROCM_REQUIRED_USE}
