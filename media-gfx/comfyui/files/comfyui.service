@@ -1,0 +1,15 @@
+[Unit]
+Description=ComfyUI - Diffusion Model GUI and Backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/comfyui --base-directory /var/lib/comfyui --listen 127.0.0.1 --port 8188
+DynamicUser=yes
+SupplementaryGroups=video render
+StateDirectory=comfyui
+WorkingDirectory=/var/lib/comfyui
+
+[Install]
+WantedBy=multi-user.target

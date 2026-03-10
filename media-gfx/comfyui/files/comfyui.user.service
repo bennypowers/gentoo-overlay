@@ -1,0 +1,11 @@
+[Unit]
+Description=ComfyUI - Diffusion Model GUI and Backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/comfyui --base-directory %S/comfyui --listen 127.0.0.1 --port 8188
+
+[Install]
+WantedBy=default.target
