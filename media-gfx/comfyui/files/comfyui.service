@@ -5,6 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+ExecStartPre=/bin/mkdir -p /var/lib/comfyui/custom_nodes
 ExecStart=/usr/bin/comfyui --base-directory /var/lib/comfyui --listen 127.0.0.1 --port 8188
 DynamicUser=yes
 SupplementaryGroups=video render
