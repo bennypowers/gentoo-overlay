@@ -1,32 +1,12 @@
 #!/usr/bin/env bash
-# Pre-commit hook: run pkgcheck on staged ebuild changes
+# Pre-commit hook: run checks on staged changes
 #
 # Install with: git config core.hooksPath hooks
 
-# Check if any ebuilds are staged
-staged_ebuilds=$(git diff --cached --name-only --diff-filter=ACM | grep '\.ebuild$')
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-if [ -z "$staged_ebuilds" ]; then
-    exit 0
-fi
+run_check() {
+    bash "$HOOKS_DIR/checks/$1" || exit 1
+}
 
-echo "Running pkgcheck on staged ebuilds..."
-
-# Run pkgcheck on staged changes, filtering to errors and warnings
-# Exit keywords: error, warning (skip style/info)
-output=$(pkgcheck scan -r bennypowers --staged \
-    -k error,warning \
-    2>&1)
-
-if [ -n "$output" ]; then
-    echo ""
-    echo "pkgcheck found issues in staged ebuilds:"
-    echo "──────────────────────────────────────────"
-    echo "$output"
-    echo "──────────────────────────────────────────"
-    echo ""
-    echo "Fix these issues before committing, or bypass with --no-verify"
-    exit 1
-fi
-
-echo "pkgcheck: no errors or warnings found."
+run_check pkgcheck-staged.sh

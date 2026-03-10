@@ -1,45 +1,27 @@
 #!/usr/bin/env bash
-# Pre-push hook: run full pkgcheck scan on commits being pushed
+# Pre-push hook: run checks on commits being pushed
 #
 # Install with: git config core.hooksPath hooks
 
-# Read the push details from stdin
+HOOKS_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+run_check() {
+    bash "$HOOKS_DIR/checks/$1" || exit 1
+}
+
 while read -r local_ref local_oid remote_ref remote_oid; do
     if [ "$local_oid" = "0000000000000000000000000000000000000000" ]; then
-        # Deleting a branch, nothing to check
         continue
     fi
 
-    # Determine the range of commits being pushed
     if [ "$remote_oid" = "0000000000000000000000000000000000000000" ]; then
-        # New branch; check all commits not on any remote branch
-        range="$local_oid --not --remotes"
+        export PUSH_RANGE="$local_oid --not --remotes"
+        export PUSH_REMOTE_OID=""
     else
-        range="$remote_oid..$local_oid"
+        export PUSH_RANGE="$remote_oid..$local_oid"
+        export PUSH_REMOTE_OID="$remote_oid"
     fi
 
-    # Check if any ebuilds are in the commits being pushed
-    ebuilds=$(git diff --name-only "$range" -- '*.ebuild' 2>/dev/null)
-    if [ -z "$ebuilds" ]; then
-        continue
-    fi
-
-    echo "Running pkgcheck on commits being pushed..."
-
-    output=$(pkgcheck scan -r bennypowers --commits \
-        -k error,warning \
-        2>&1)
-
-    if [ -n "$output" ]; then
-        echo ""
-        echo "pkgcheck found issues in commits being pushed:"
-        echo "──────────────────────────────────────────"
-        echo "$output"
-        echo "──────────────────────────────────────────"
-        echo ""
-        echo "Fix these issues before pushing, or bypass with --no-verify"
-        exit 1
-    fi
-
-    echo "pkgcheck: no errors or warnings found."
+    run_check no-modify-pushed-ebuilds.sh
+    run_check pkgcheck-commits.sh
 done
