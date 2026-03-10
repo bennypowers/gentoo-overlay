@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStartPre=/bin/mkdir -p %S/comfyui/custom_nodes
-ExecStart=/usr/bin/comfyui --base-directory %S/comfyui --listen 127.0.0.1 --port 8188
+ExecStartPre=/bin/mkdir -p %S/comfyui/custom_nodes %S/comfyui/user
+ExecStart=/usr/bin/comfyui --base-directory %S/comfyui --database-url sqlite:///%S/comfyui/user/comfyui.db --listen 127.0.0.1 --port 8188
 
 [Install]
 WantedBy=default.target
