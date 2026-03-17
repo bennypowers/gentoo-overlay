@@ -17,6 +17,9 @@ fi
 # Check which of these modified ebuilds already exist on the remote
 errors=()
 for ebuild in $modified_ebuilds; do
+    # Live ebuilds (9999) are expected to be modified in place
+    [[ "$ebuild" == *-9999.ebuild ]] && continue
+
     # Check if the file exists in the remote ref we're pushing to
     if git cat-file -e "${PUSH_REMOTE_OID}:${ebuild}" 2>/dev/null; then
         errors+=("$ebuild")
