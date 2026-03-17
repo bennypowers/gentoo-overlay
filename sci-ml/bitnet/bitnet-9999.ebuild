@@ -42,7 +42,7 @@ bitnet_run_codegen() {
 		codegen_script=utils/codegen_tl2.py
 	fi
 
-	"${EPYTHON:-python3}" "${codegen_script}" "${codegen_args[@]}" \
+	python3 "${codegen_script}" "${codegen_args[@]}" \
 		|| die "codegen failed"
 }
 
