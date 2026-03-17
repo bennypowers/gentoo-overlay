@@ -1,0 +1,18 @@
+[Unit]
+Description=BitNet 1-bit LLM Inference Server
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/bitnet-server \
+    -m /var/lib/bitnet/models/current/ggml-model-i2_s.gguf \
+    -t 48 \
+    --host 127.0.0.1 \
+    --port 8081
+User=ollama
+Group=ollama
+Restart=always
+RestartSec=3
+Environment="PATH=/usr/bin"
+
+[Install]
+WantedBy=multi-user.target

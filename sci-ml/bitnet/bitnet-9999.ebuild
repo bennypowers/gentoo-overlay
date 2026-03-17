@@ -5,7 +5,7 @@ EAPI=8
 
 LLVM_COMPAT=( {18..22} )
 
-inherit cmake git-r3 llvm-r2 toolchain-funcs
+inherit cmake git-r3 llvm-r2 systemd toolchain-funcs
 
 DESCRIPTION="Official inference framework for 1-bit LLMs"
 HOMEPAGE="https://github.com/microsoft/BitNet"
@@ -18,7 +18,10 @@ IUSE="+openmp cpu_flags_x86_avx2 cpu_flags_arm_neon"
 DEPEND="
 	openmp? ( llvm-runtimes/openmp:= )
 "
-RDEPEND="${DEPEND}"
+RDEPEND="
+	${DEPEND}
+	acct-user/ollama
+"
 BDEPEND="
 	$(llvm_gen_dep '
 		llvm-core/clang:${LLVM_SLOT}
@@ -75,6 +78,10 @@ src_install() {
 	insinto /usr/share/${PN}
 	doins run_inference.py
 	doins setup_env.py
+
+	systemd_dounit "${FILESDIR}/bitnet.service"
+
+	keepdir /var/lib/bitnet/models
 
 	dodoc README.md
 }
