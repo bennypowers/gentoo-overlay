@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		BitNet is the official inference framework for 1-bit LLMs (BitNet b1.58).
+		It provides optimized kernels for fast and lossless inference of 1.58-bit
+		quantized models on CPU, with architecture-specific optimizations for
+		x86 (TL2) and ARM (TL1) platforms.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">microsoft/BitNet</remote-id>
+	</upstream>
+</pkgmetadata>
