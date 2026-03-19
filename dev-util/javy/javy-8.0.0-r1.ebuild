@@ -1,0 +1,484 @@
+# Copyright 2025 Gentoo Authors
+# Distributed under the terms of the GNU General Public License v2
+
+EAPI=8
+
+CRATES="
+	addr2line@0.25.1
+	ahash@0.8.12
+	aho-corasick@1.1.4
+	alloc-no-stdlib@2.0.4
+	alloc-stdlib@0.2.2
+	allocator-api2@0.2.21
+	ambient-authority@0.0.2
+	android_system_properties@0.1.5
+	anstream@0.6.21
+	anstyle-parse@0.2.7
+	anstyle-query@1.1.4
+	anstyle-wincon@3.0.10
+	anstyle@1.0.13
+	anyhow@1.0.100
+	arbitrary-json@0.1.1
+	arbitrary@1.4.2
+	ast_node@4.0.0
+	async-trait@0.1.89
+	autocfg@1.5.0
+	base64-simd@0.8.0
+	base64@0.22.1
+	better_scoped_tls@1.0.1
+	bindgen@0.72.1
+	bitflags@2.10.0
+	bitvec@1.0.1
+	block-buffer@0.10.4
+	brotli-decompressor@5.0.0
+	brotli@8.0.2
+	bumpalo@3.19.0
+	byteorder@1.5.0
+	bytes-str@0.2.7
+	bytes@1.10.1
+	camino@1.2.1
+	cap-fs-ext@3.4.5
+	cap-net-ext@3.4.5
+	cap-primitives@3.4.5
+	cap-rand@3.4.5
+	cap-std@3.4.5
+	cap-time-ext@3.4.5
+	cargo-platform@0.1.9
+	cargo_metadata@0.19.2
+	cc@1.2.44
+	cexpr@0.6.0
+	cfg-if@1.0.4
+	clang-sys@1.8.1
+	clap@4.5.51
+	clap_builder@4.5.51
+	clap_derive@4.5.49
+	clap_lex@0.7.6
+	cobs@0.3.0
+	codespan-reporting@0.13.1
+	colorchoice@1.0.4
+	console@0.15.11
+	convert_case@0.8.0
+	core-foundation-sys@0.8.7
+	cpp_demangle@0.4.5
+	cpufeatures@0.2.17
+	cranelift-assembler-x64-meta@0.123.2
+	cranelift-assembler-x64@0.123.2
+	cranelift-bforest@0.123.2
+	cranelift-bitset@0.123.2
+	cranelift-codegen-meta@0.123.2
+	cranelift-codegen-shared@0.123.2
+	cranelift-codegen@0.123.2
+	cranelift-control@0.123.2
+	cranelift-entity@0.123.2
+	cranelift-frontend@0.123.2
+	cranelift-isle@0.123.2
+	cranelift-native@0.123.2
+	cranelift-srcgen@0.123.2
+	crc32fast@1.5.0
+	crossbeam-deque@0.8.6
+	crossbeam-epoch@0.9.18
+	crossbeam-utils@0.8.21
+	crypto-common@0.1.6
+	cxx-build@1.0.187
+	cxx@1.0.187
+	cxxbridge-cmd@1.0.187
+	cxxbridge-flags@1.0.187
+	cxxbridge-macro@1.0.187
+	darling@0.20.11
+	darling_core@0.20.11
+	darling_macro@0.20.11
+	data-encoding@2.9.0
+	debugid@0.8.0
+	derive_builder@0.20.2
+	derive_builder_core@0.20.2
+	derive_builder_macro@0.20.2
+	digest@0.10.7
+	directories-next@2.0.0
+	dirs-sys-next@0.1.2
+	displaydoc@0.2.5
+	either@1.15.0
+	embedded-io@0.4.0
+	embedded-io@0.6.1
+	encode_unicode@1.0.0
+	encoding_rs@0.8.35
+	env_logger@0.8.4
+	equivalent@1.0.2
+	errno@0.3.14
+	fallible-iterator@0.2.0
+	fallible-iterator@0.3.0
+	fastrand@2.3.0
+	fd-lock@4.0.4
+	find-msvc-tools@0.1.4
+	float-cmp@0.10.0
+	fnv@1.0.7
+	foldhash@0.1.5
+	foldhash@0.2.0
+	form_urlencoded@1.2.2
+	from_variant@2.0.2
+	fs-set-times@0.20.3
+	funty@2.0.0
+	futures-channel@0.3.31
+	futures-core@0.3.31
+	futures-io@0.3.31
+	futures-sink@0.3.31
+	futures-task@0.3.31
+	futures-util@0.3.31
+	futures@0.3.31
+	fxhash@0.2.1
+	fxprof-processed-profile@0.6.0
+	generic-array@0.14.9
+	getrandom@0.2.16
+	getrandom@0.3.4
+	gimli@0.26.2
+	gimli@0.32.3
+	glob@0.3.3
+	halfbrown@0.4.0
+	hashbrown@0.12.3
+	hashbrown@0.14.5
+	hashbrown@0.15.5
+	hashbrown@0.16.0
+	heck@0.4.1
+	heck@0.5.0
+	hermit-abi@0.5.2
+	hstr@3.0.3
+	iana-time-zone-haiku@0.1.2
+	iana-time-zone@0.1.64
+	icu_collections@2.1.1
+	icu_locale_core@2.1.1
+	icu_normalizer@2.1.1
+	icu_normalizer_data@2.1.1
+	icu_properties@2.1.1
+	icu_properties_data@2.1.1
+	icu_provider@2.1.1
+	id-arena@2.2.1
+	ident_case@1.0.1
+	idna@1.1.0
+	idna_adapter@1.2.1
+	if_chain@1.0.3
+	indexmap@1.9.3
+	indexmap@2.12.0
+	insta@1.43.2
+	io-extras@0.18.4
+	io-lifetimes@2.0.4
+	ipnet@2.11.0
+	is-macro@0.3.7
+	is_terminal_polyfill@1.70.2
+	itertools@0.13.0
+	itertools@0.14.0
+	itoa@1.0.15
+	ittapi-sys@0.4.0
+	ittapi@0.4.0
+	jobserver@0.1.34
+	js-sys@0.3.82
+	leb128@0.2.5
+	leb128fmt@0.1.0
+	libc@0.2.177
+	libfuzzer-sys@0.4.10
+	libloading@0.8.9
+	libm@0.2.15
+	libredox@0.1.10
+	link-cplusplus@1.0.12
+	linux-raw-sys@0.11.0
+	linux-raw-sys@0.4.15
+	litemap@0.8.1
+	log@0.4.28
+	mach2@0.4.3
+	maybe-owned@0.3.4
+	memchr@2.7.6
+	memfd@0.6.5
+	minimal-lexical@0.2.1
+	mio@1.1.0
+	new_debug_unreachable@1.0.6
+	nom@7.1.3
+	num-bigint@0.4.6
+	num-integer@0.1.46
+	num-traits@0.2.19
+	num_cpus@1.17.0
+	object@0.37.3
+	once_cell@1.21.3
+	once_cell_polyfill@1.70.2
+	outref@0.5.2
+	par-core@2.0.0
+	paste@1.0.15
+	percent-encoding@2.3.2
+	phf@0.11.3
+	phf_generator@0.11.3
+	phf_macros@0.11.3
+	phf_shared@0.11.3
+	pin-project-lite@0.2.16
+	pin-utils@0.1.0
+	pkg-config@0.3.32
+	postcard@1.1.3
+	potential_utf@0.1.4
+	ppv-lite86@0.2.21
+	prettyplease@0.2.37
+	proc-macro-crate@3.4.0
+	proc-macro2@1.0.103
+	pulley-interpreter@36.0.2
+	pulley-macros@36.0.2
+	quickcheck@1.0.3
+	quote@1.0.41
+	r-efi@5.3.0
+	radium@0.7.0
+	rand@0.8.5
+	rand_chacha@0.3.1
+	rand_core@0.6.4
+	rayon-core@1.13.0
+	rayon@1.11.0
+	redox_users@0.4.6
+	ref-cast-impl@1.0.25
+	ref-cast@1.0.25
+	regalloc2@0.12.2
+	regex-automata@0.4.13
+	regex-syntax@0.8.8
+	regex@1.12.2
+	relative-path@2.0.1
+	rmp-serde@1.3.0
+	rmp@0.8.14
+	rquickjs-core@0.10.0
+	rquickjs-macro@0.10.0
+	rquickjs-sys@0.10.0
+	rquickjs@0.10.0
+	rustc-demangle@0.1.26
+	rustc-hash@2.1.1
+	rustix-linux-procfs@0.1.1
+	rustix@0.38.44
+	rustix@1.1.2
+	rustversion@1.0.22
+	ryu-js@1.0.2
+	ryu@1.0.20
+	scoped-tls@1.0.1
+	scratch@1.0.9
+	semver@1.0.27
+	seq-macro@0.3.6
+	serde-transcode@1.1.1
+	serde@1.0.228
+	serde_core@1.0.228
+	serde_derive@1.0.228
+	serde_json@1.0.145
+	serde_spanned@0.6.9
+	sha2@0.10.9
+	shlex@1.3.0
+	simd-json@0.17.0
+	simdutf8@0.1.5
+	similar@2.7.0
+	siphasher@0.3.11
+	siphasher@1.0.1
+	smallvec@1.15.1
+	smartstring@1.0.1
+	socket2@0.6.1
+	stable_deref_trait@1.2.1
+	static_assertions@1.1.0
+	string_enum@1.0.2
+	strsim@0.11.1
+	strum@0.24.1
+	strum_macros@0.24.3
+	swc_allocator@4.0.1
+	swc_atoms@8.0.2
+	swc_common@16.0.0
+	swc_core@46.0.3
+	swc_ecma_ast@17.0.0
+	swc_ecma_parser@26.0.1
+	swc_ecma_transforms_base@29.0.0
+	swc_ecma_utils@23.0.0
+	swc_ecma_visit@17.0.0
+	swc_eq_ignore_macros@1.0.1
+	swc_macros_common@1.0.1
+	swc_sourcemap@9.3.4
+	swc_visit@2.0.1
+	syn@1.0.109
+	syn@2.0.109
+	synstructure@0.13.2
+	system-interface@0.27.3
+	tap@1.0.1
+	target-lexicon@0.13.3
+	tempfile@3.23.0
+	termcolor@1.4.1
+	thiserror-impl@1.0.69
+	thiserror-impl@2.0.17
+	thiserror@1.0.69
+	thiserror@2.0.17
+	tinystr@0.8.2
+	tokio@1.48.0
+	toml@0.8.23
+	toml_datetime@0.6.11
+	toml_datetime@0.7.3
+	toml_edit@0.22.27
+	toml_edit@0.23.7
+	toml_parser@1.0.4
+	toml_write@0.1.2
+	tracing-attributes@0.1.30
+	tracing-core@0.1.34
+	tracing@0.1.41
+	triomphe@0.1.15
+	typenum@1.19.0
+	unicode-id-start@1.4.0
+	unicode-ident@1.0.22
+	unicode-segmentation@1.12.0
+	unicode-width@0.1.14
+	unicode-width@0.2.2
+	unicode-xid@0.2.6
+	url@2.5.7
+	utf8_iter@1.0.4
+	utf8parse@0.2.2
+	uuid@1.18.1
+	value-trait@0.12.1
+	vergen-lib@0.1.6
+	vergen@9.0.6
+	version_check@0.9.5
+	vsimd@0.8.0
+	walrus-macro@0.24.0
+	walrus@0.24.4
+	wasi@0.11.1+wasi-snapshot-preview1
+	wasip2@1.0.1+wasi-0.2.4
+	wasm-bindgen-macro-support@0.2.105
+	wasm-bindgen-macro@0.2.105
+	wasm-bindgen-shared@0.2.105
+	wasm-bindgen@0.2.105
+	wasm-encoder@0.236.1
+	wasm-encoder@0.238.1
+	wasm-encoder@0.240.0
+	wasm-metadata@0.240.0
+	wasm-opt-cxx-sys@0.116.0
+	wasm-opt-sys@0.116.0
+	wasm-opt@0.116.1
+	wasmparser@0.236.1
+	wasmparser@0.238.1
+	wasmparser@0.240.0
+	wasmprinter@0.236.1
+	wasmprinter@0.240.0
+	wasmtime-environ@36.0.2
+	wasmtime-internal-asm-macros@36.0.2
+	wasmtime-internal-cache@36.0.2
+	wasmtime-internal-component-macro@36.0.2
+	wasmtime-internal-component-util@36.0.2
+	wasmtime-internal-cranelift@36.0.2
+	wasmtime-internal-fiber@36.0.2
+	wasmtime-internal-jit-debug@36.0.2
+	wasmtime-internal-jit-icache-coherence@36.0.2
+	wasmtime-internal-math@36.0.2
+	wasmtime-internal-slab@36.0.2
+	wasmtime-internal-unwinder@36.0.2
+	wasmtime-internal-versioned-export-macros@36.0.2
+	wasmtime-internal-winch@36.0.2
+	wasmtime-internal-wit-bindgen@36.0.2
+	wasmtime-wasi-io@36.0.2
+	wasmtime-wasi@36.0.2
+	wasmtime@36.0.2
+	wast@240.0.0
+	wast@35.0.2
+	wat@1.240.0
+	wiggle-generate@36.0.2
+	wiggle-macro@36.0.2
+	wiggle@36.0.2
+	winapi-i686-pc-windows-gnu@0.4.0
+	winapi-util@0.1.11
+	winapi-x86_64-pc-windows-gnu@0.4.0
+	winapi@0.3.9
+	winch-codegen@36.0.2
+	windows-core@0.62.2
+	windows-implement@0.60.2
+	windows-interface@0.59.3
+	windows-link@0.2.1
+	windows-result@0.4.1
+	windows-strings@0.5.1
+	windows-sys@0.59.0
+	windows-sys@0.60.2
+	windows-sys@0.61.2
+	windows-targets@0.52.6
+	windows-targets@0.53.5
+	windows_aarch64_gnullvm@0.52.6
+	windows_aarch64_gnullvm@0.53.1
+	windows_aarch64_msvc@0.52.6
+	windows_aarch64_msvc@0.53.1
+	windows_i686_gnu@0.52.6
+	windows_i686_gnu@0.53.1
+	windows_i686_gnullvm@0.52.6
+	windows_i686_gnullvm@0.53.1
+	windows_i686_msvc@0.52.6
+	windows_i686_msvc@0.53.1
+	windows_x86_64_gnu@0.52.6
+	windows_x86_64_gnu@0.53.1
+	windows_x86_64_gnullvm@0.52.6
+	windows_x86_64_gnullvm@0.53.1
+	windows_x86_64_msvc@0.52.6
+	windows_x86_64_msvc@0.53.1
+	winnow@0.7.13
+	winx@0.36.4
+	wit-bindgen-core@0.47.0
+	wit-bindgen-rust-macro@0.47.0
+	wit-bindgen-rust@0.47.0
+	wit-bindgen@0.46.0
+	wit-bindgen@0.47.0
+	wit-component@0.240.0
+	wit-parser@0.236.1
+	wit-parser@0.240.0
+	witx@0.9.1
+	wizer@10.0.0
+	writeable@0.6.2
+	wyz@0.5.1
+	yoke-derive@0.8.1
+	yoke@0.8.1
+	zerocopy-derive@0.8.27
+	zerocopy@0.8.27
+	zerofrom-derive@0.1.6
+	zerofrom@0.1.6
+	zerotrie@0.2.3
+	zerovec-derive@0.11.2
+	zerovec@0.11.5
+	zstd-safe@7.2.4
+	zstd-sys@2.0.16+zstd.1.5.7
+	zstd@0.13.3
+"
+
+RUST_MIN_VER="1.85.0"
+RUST_REQ_USE="rust_sysroots_wasm"
+
+inherit cargo
+
+DESCRIPTION="JavaScript to WebAssembly toolchain"
+HOMEPAGE="https://github.com/bytecodealliance/javy"
+SRC_URI="
+	https://github.com/bytecodealliance/javy/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz
+	${CARGO_CRATE_URIS}
+"
+
+LICENSE="Apache-2.0-with-LLVM-exceptions"
+# Dependent crate licenses
+LICENSE+="
+	Apache-2.0 BSD ISC MIT MPL-2.0 Unicode-3.0 ZLIB
+	|| ( Apache-2.0 MIT )
+"
+SLOT="0"
+KEYWORDS="~amd64"
+
+# clang is needed for cross-compiling C code to wasm32-wasip1 (QuickJS in
+# rquickjs-sys) and for building binaryen C++ via wasm-opt-sys/cxx
+BDEPEND="
+	llvm-core/clang
+"
+
+QA_FLAGS_IGNORED="usr/bin/javy"
+
+src_compile() {
+	# Build the default plugin for wasm32-wasip1.
+	# This must happen before the CLI build, whose build.rs expects the
+	# plugin at target/wasm32-wasip1/release/plugin.wasm.
+	# Run in a subshell to isolate host RUSTFLAGS (e.g. -C target-cpu=native)
+	# which are invalid for wasm targets.
+	(
+		unset CARGO_BUILD_RUSTFLAGS CARGO_ENCODED_RUSTFLAGS RUSTFLAGS
+		export CARGO_TARGET_WASM32_WASIP1_RUSTFLAGS="-C strip=none"
+		export CC_wasm32_wasip1=clang
+		cargo build -p javy-plugin --target wasm32-wasip1 --release
+	) || die "plugin build failed"
+
+	# Build the CLI binary (its build.rs picks up and processes the plugin)
+	local -x CARGO_PROFILE_RELEASE_LTO=off
+	cargo_src_compile -p javy-cli
+}
+
+src_install() {
+	dobin "$(cargo_target_dir)/javy"
+	dodoc README.md
+}
