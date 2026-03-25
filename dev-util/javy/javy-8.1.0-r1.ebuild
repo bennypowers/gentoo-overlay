@@ -1,0 +1,561 @@
+# Copyright 2025 Gentoo Authors
+# Distributed under the terms of the GNU General Public License v2
+
+EAPI=8
+
+CRATES="
+	addr2line@0.26.0
+	ahash@0.8.12
+	aho-corasick@1.1.4
+	alloc-no-stdlib@2.0.4
+	alloc-stdlib@0.2.2
+	allocator-api2@0.2.21
+	ambient-authority@0.0.2
+	android_system_properties@0.1.5
+	anstream@0.6.21
+	anstyle-parse@0.2.7
+	anstyle-query@1.1.4
+	anstyle-wincon@3.0.10
+	anstyle@1.0.13
+	anyhow@1.0.102
+	arbitrary-json@0.1.1
+	arbitrary@1.4.2
+	ast_node@5.0.0
+	async-trait@0.1.89
+	autocfg@1.5.0
+	base64-simd@0.8.0
+	base64@0.22.1
+	better_scoped_tls@1.0.1
+	bindgen@0.72.1
+	bitflags@2.11.0
+	bitmaps@2.1.0
+	bitvec@1.0.1
+	block-buffer@0.10.4
+	brotli-decompressor@5.0.0
+	brotli@8.0.2
+	bumpalo@3.19.0
+	byteorder@1.5.0
+	bytes-str@0.2.7
+	bytes@1.11.1
+	camino@1.2.1
+	cap-fs-ext@3.4.5
+	cap-net-ext@3.4.5
+	cap-primitives@3.4.5
+	cap-rand@3.4.5
+	cap-std@3.4.5
+	cap-time-ext@3.4.5
+	cargo-platform@0.1.9
+	cargo_metadata@0.19.2
+	cc@1.2.44
+	cexpr@0.6.0
+	cfg-if@1.0.4
+	clang-sys@1.8.1
+	clap@4.5.60
+	clap_builder@4.5.60
+	clap_derive@4.5.55
+	clap_lex@1.0.0
+	cobs@0.3.0
+	codespan-reporting@0.13.1
+	colorchoice@1.0.4
+	console@0.15.11
+	convert_case@0.10.0
+	core-foundation-sys@0.8.7
+	cpp_demangle@0.4.5
+	cpufeatures@0.2.17
+	cranelift-assembler-x64-meta@0.129.1
+	cranelift-assembler-x64@0.129.1
+	cranelift-bforest@0.129.1
+	cranelift-bitset@0.129.1
+	cranelift-codegen-meta@0.129.1
+	cranelift-codegen-shared@0.129.1
+	cranelift-codegen@0.129.1
+	cranelift-control@0.129.1
+	cranelift-entity@0.129.1
+	cranelift-frontend@0.129.1
+	cranelift-isle@0.129.1
+	cranelift-native@0.129.1
+	cranelift-srcgen@0.129.1
+	crc32fast@1.5.0
+	crossbeam-deque@0.8.6
+	crossbeam-epoch@0.9.18
+	crossbeam-utils@0.8.21
+	crypto-common@0.1.6
+	cxx-build@1.0.187
+	cxx@1.0.187
+	cxxbridge-cmd@1.0.187
+	cxxbridge-flags@1.0.187
+	cxxbridge-macro@1.0.187
+	darling@0.20.11
+	darling_core@0.20.11
+	darling_macro@0.20.11
+	data-encoding@2.9.0
+	debugid@0.8.0
+	derive_builder@0.20.2
+	derive_builder_core@0.20.2
+	derive_builder_macro@0.20.2
+	deterministic-wasi-ctx@4.0.0
+	digest@0.10.7
+	directories-next@2.0.0
+	dirs-sys-next@0.1.2
+	displaydoc@0.2.5
+	dragonbox_ecma@0.1.0
+	either@1.15.0
+	embedded-io@0.4.0
+	embedded-io@0.6.1
+	encode_unicode@1.0.0
+	encoding_rs@0.8.35
+	env_filter@1.0.0
+	env_logger@0.11.9
+	equivalent@1.0.2
+	errno@0.3.14
+	fallible-iterator@0.2.0
+	fastrand@2.3.0
+	fd-lock@4.0.4
+	find-msvc-tools@0.1.4
+	fixedbitset@0.4.2
+	float-cmp@0.10.0
+	fnv@1.0.7
+	foldhash@0.1.5
+	foldhash@0.2.0
+	form_urlencoded@1.2.2
+	from_variant@3.0.0
+	fs-set-times@0.20.3
+	funty@2.0.0
+	futures-channel@0.3.31
+	futures-core@0.3.31
+	futures-io@0.3.31
+	futures-sink@0.3.31
+	futures-task@0.3.31
+	futures-util@0.3.31
+	futures@0.3.31
+	fxprof-processed-profile@0.8.1
+	generic-array@0.14.9
+	getrandom@0.2.16
+	getrandom@0.3.4
+	getrandom@0.4.1
+	gimli@0.26.2
+	gimli@0.33.0
+	glob@0.3.3
+	halfbrown@0.4.0
+	hashbrown@0.12.3
+	hashbrown@0.14.5
+	hashbrown@0.15.5
+	hashbrown@0.16.0
+	heck@0.4.1
+	heck@0.5.0
+	hermit-abi@0.5.2
+	hstr@3.0.3
+	iana-time-zone-haiku@0.1.2
+	iana-time-zone@0.1.64
+	icu_collections@2.1.1
+	icu_locale_core@2.1.1
+	icu_normalizer@2.1.1
+	icu_normalizer_data@2.1.1
+	icu_properties@2.1.1
+	icu_properties_data@2.1.1
+	icu_provider@2.1.1
+	id-arena@2.2.1
+	ident_case@1.0.1
+	idna@1.1.0
+	idna_adapter@1.2.1
+	if_chain@1.0.3
+	im-rc@15.1.0
+	indexmap@1.9.3
+	indexmap@2.12.0
+	insta@1.46.3
+	io-extras@0.18.4
+	io-lifetimes@2.0.4
+	ipnet@2.11.0
+	is-macro@0.3.7
+	is_terminal_polyfill@1.70.2
+	itertools@0.13.0
+	itertools@0.14.0
+	itoa@1.0.15
+	ittapi-sys@0.4.0
+	ittapi@0.4.0
+	jobserver@0.1.34
+	js-sys@0.3.82
+	leb128@0.2.5
+	leb128fmt@0.1.0
+	libc@0.2.182
+	libfuzzer-sys@0.4.12
+	libloading@0.8.9
+	libm@0.2.16
+	libredox@0.1.10
+	link-cplusplus@1.0.12
+	linux-raw-sys@0.12.1
+	linux-raw-sys@0.4.15
+	litemap@0.8.1
+	log@0.4.28
+	mach2@0.4.3
+	maybe-owned@0.3.4
+	memchr@2.7.6
+	memfd@0.6.5
+	minimal-lexical@0.2.1
+	mio@1.1.0
+	new_debug_unreachable@1.0.6
+	nom@7.1.3
+	num-bigint@0.4.6
+	num-integer@0.1.46
+	num-traits@0.2.19
+	num_cpus@1.17.0
+	object@0.37.3
+	once_cell@1.21.3
+	once_cell_polyfill@1.70.2
+	outref@0.5.2
+	par-core@2.0.0
+	paste@1.0.15
+	percent-encoding@2.3.2
+	petgraph@0.6.5
+	phf@0.11.3
+	phf_generator@0.11.3
+	phf_macros@0.11.3
+	phf_shared@0.11.3
+	pin-project-lite@0.2.16
+	pin-utils@0.1.0
+	pkg-config@0.3.32
+	postcard@1.1.3
+	potential_utf@0.1.4
+	ppv-lite86@0.2.21
+	prettyplease@0.2.37
+	proc-macro-crate@3.4.0
+	proc-macro2@1.0.106
+	pulley-interpreter@42.0.1
+	pulley-macros@42.0.1
+	quickcheck@1.1.0
+	quote@1.0.44
+	r-efi@5.3.0
+	radium@0.7.0
+	rand@0.10.0
+	rand@0.8.5
+	rand_chacha@0.3.1
+	rand_core@0.10.0
+	rand_core@0.6.4
+	rand_pcg@0.3.1
+	rand_xoshiro@0.6.0
+	rayon-core@1.13.0
+	rayon@1.11.0
+	redox_users@0.4.6
+	ref-cast-impl@1.0.25
+	ref-cast@1.0.25
+	regalloc2@0.13.5
+	regex-automata@0.4.13
+	regex-syntax@0.8.8
+	regex@1.12.2
+	relative-path@2.0.1
+	rmp-serde@1.3.1
+	rmp@0.8.14
+	rquickjs-core@0.11.0
+	rquickjs-macro@0.11.0
+	rquickjs-serde@0.5.0
+	rquickjs-sys@0.11.0
+	rquickjs@0.11.0
+	rustc-demangle@0.1.26
+	rustc-hash@2.1.1
+	rustix-linux-procfs@0.1.1
+	rustix@0.38.44
+	rustix@1.1.4
+	rustversion@1.0.22
+	ryu@1.0.20
+	scoped-tls@1.0.1
+	scratch@1.0.9
+	semver@1.0.27
+	seq-macro@0.3.6
+	serde-transcode@1.1.1
+	serde@1.0.228
+	serde_core@1.0.228
+	serde_derive@1.0.228
+	serde_json@1.0.149
+	serde_spanned@1.0.3
+	serde_yaml@0.9.34+deprecated
+	sha2@0.10.9
+	shlex@1.3.0
+	simd-json@0.17.0
+	simdutf8@0.1.5
+	similar@2.7.0
+	siphasher@0.3.11
+	siphasher@1.0.1
+	sized-chunks@0.6.5
+	slab@0.4.11
+	smallvec@1.15.1
+	smartstring@1.0.1
+	socket2@0.6.1
+	stable_deref_trait@1.2.1
+	static_assertions@1.1.0
+	string_enum@1.0.2
+	strsim@0.11.1
+	strum@0.24.1
+	strum_macros@0.24.3
+	swc_allocator@4.0.1
+	swc_atoms@9.0.0
+	swc_common@19.0.0
+	swc_core@58.0.4
+	swc_ecma_ast@21.0.0
+	swc_ecma_parser@35.0.0
+	swc_ecma_transforms_base@38.0.0
+	swc_ecma_utils@27.0.0
+	swc_ecma_visit@21.0.0
+	swc_eq_ignore_macros@1.0.1
+	swc_macros_common@1.0.1
+	swc_sourcemap@10.0.2
+	swc_visit@2.0.1
+	syn@1.0.109
+	syn@2.0.117
+	synstructure@0.13.2
+	system-interface@0.27.3
+	tap@1.0.1
+	target-lexicon@0.13.3
+	tempfile@3.26.0
+	termcolor@1.4.1
+	thiserror-impl@1.0.69
+	thiserror-impl@2.0.17
+	thiserror@1.0.69
+	thiserror@2.0.17
+	tinystr@0.8.2
+	tokio-macros@2.6.0
+	tokio@1.50.0
+	toml@0.9.8
+	toml_datetime@0.7.3
+	toml_edit@0.23.7
+	toml_parser@1.0.4
+	toml_writer@1.0.4
+	tracing-attributes@0.1.30
+	tracing-core@0.1.34
+	tracing@0.1.41
+	triomphe@0.1.15
+	typenum@1.19.0
+	unicode-id-start@1.4.0
+	unicode-ident@1.0.22
+	unicode-segmentation@1.12.0
+	unicode-width@0.2.2
+	unicode-xid@0.2.6
+	unsafe-libyaml@0.2.11
+	url@2.5.7
+	utf8_iter@1.0.4
+	utf8parse@0.2.2
+	uuid@1.21.0
+	value-trait@0.12.1
+	vergen-lib@0.1.6
+	vergen@9.0.6
+	version_check@0.9.5
+	vsimd@0.8.0
+	walrus-macro@0.24.0
+	walrus@0.24.5
+	wasi@0.11.1+wasi-snapshot-preview1
+	wasip2@1.0.1+wasi-0.2.4
+	wasip3@0.4.0+wasi-0.3.0-rc-2026-01-06
+	wasm-bindgen-macro-support@0.2.105
+	wasm-bindgen-macro@0.2.105
+	wasm-bindgen-shared@0.2.105
+	wasm-bindgen@0.2.105
+	wasm-compose@0.244.0
+	wasm-encoder@0.240.0
+	wasm-encoder@0.244.0
+	wasm-metadata@0.244.0
+	wasm-opt-cxx-sys@0.116.0
+	wasm-opt-sys@0.116.0
+	wasm-opt@0.116.1
+	wasmparser@0.240.0
+	wasmparser@0.244.0
+	wasmprinter@0.244.0
+	wasmtime-environ@42.0.1
+	wasmtime-internal-cache@42.0.1
+	wasmtime-internal-component-macro@42.0.1
+	wasmtime-internal-component-util@42.0.1
+	wasmtime-internal-core@42.0.1
+	wasmtime-internal-cranelift@42.0.1
+	wasmtime-internal-fiber@42.0.1
+	wasmtime-internal-jit-debug@42.0.1
+	wasmtime-internal-jit-icache-coherence@42.0.1
+	wasmtime-internal-unwinder@42.0.1
+	wasmtime-internal-versioned-export-macros@42.0.1
+	wasmtime-internal-winch@42.0.1
+	wasmtime-internal-wit-bindgen@42.0.1
+	wasmtime-wasi-io@42.0.1
+	wasmtime-wasi@42.0.1
+	wasmtime-wizer@42.0.1
+	wasmtime@42.0.1
+	wast@244.0.0
+	wast@35.0.2
+	wat@1.244.0
+	wiggle-generate@42.0.1
+	wiggle-macro@42.0.1
+	wiggle@42.0.1
+	winapi-i686-pc-windows-gnu@0.4.0
+	winapi-util@0.1.11
+	winapi-x86_64-pc-windows-gnu@0.4.0
+	winapi@0.3.9
+	winch-codegen@42.0.1
+	windows-core@0.62.2
+	windows-implement@0.60.2
+	windows-interface@0.59.3
+	windows-link@0.2.1
+	windows-result@0.4.1
+	windows-strings@0.5.1
+	windows-sys@0.59.0
+	windows-sys@0.60.2
+	windows-sys@0.61.2
+	windows-targets@0.52.6
+	windows-targets@0.53.5
+	windows_aarch64_gnullvm@0.52.6
+	windows_aarch64_gnullvm@0.53.1
+	windows_aarch64_msvc@0.52.6
+	windows_aarch64_msvc@0.53.1
+	windows_i686_gnu@0.52.6
+	windows_i686_gnu@0.53.1
+	windows_i686_gnullvm@0.52.6
+	windows_i686_gnullvm@0.53.1
+	windows_i686_msvc@0.52.6
+	windows_i686_msvc@0.53.1
+	windows_x86_64_gnu@0.52.6
+	windows_x86_64_gnu@0.53.1
+	windows_x86_64_gnullvm@0.52.6
+	windows_x86_64_gnullvm@0.53.1
+	windows_x86_64_msvc@0.52.6
+	windows_x86_64_msvc@0.53.1
+	winnow@0.7.13
+	winx@0.36.4
+	wit-bindgen-core@0.51.0
+	wit-bindgen-core@0.52.0
+	wit-bindgen-rust-macro@0.51.0
+	wit-bindgen-rust-macro@0.52.0
+	wit-bindgen-rust@0.51.0
+	wit-bindgen-rust@0.52.0
+	wit-bindgen@0.46.0
+	wit-bindgen@0.51.0
+	wit-bindgen@0.52.0
+	wit-component@0.244.0
+	wit-parser@0.244.0
+	witx@0.9.1
+	writeable@0.6.2
+	wyz@0.5.1
+	yoke-derive@0.8.1
+	yoke@0.8.1
+	zerocopy-derive@0.8.27
+	zerocopy@0.8.27
+	zerofrom-derive@0.1.6
+	zerofrom@0.1.6
+	zerotrie@0.2.3
+	zerovec-derive@0.11.2
+	zerovec@0.11.5
+	zmij@1.0.12
+	zstd-safe@7.2.4
+	zstd-sys@2.0.16+zstd.1.5.7
+	zstd@0.13.3
+"
+
+
+RUST_MIN_VER="1.85.0"
+RUST_REQ_USE="rust_sysroots_wasm"
+
+inherit cargo
+
+DESCRIPTION="JavaScript to WebAssembly toolchain"
+HOMEPAGE="https://github.com/bytecodealliance/javy"
+SRC_URI="
+	https://github.com/bytecodealliance/javy/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz
+	${CARGO_CRATE_URIS}
+"
+
+LICENSE="Apache-2.0-with-LLVM-exceptions"
+# Dependent crate licenses
+LICENSE+="
+	Apache-2.0 BSD ISC MIT MPL-2.0 Unicode-3.0 ZLIB
+	|| ( Apache-2.0 MIT )
+"
+SLOT="0"
+KEYWORDS="~amd64"
+
+# clang is needed for cross-compiling C code to wasm32-wasip1 (QuickJS in
+# rquickjs-sys) and for building binaryen C++ via wasm-opt-sys/cxx.
+# rust-bin is needed because Gentoo's dev-lang/rust patches the compiler
+# identity (adding "(gentoo)"), making prebuilt wasm32-wasip1 stdlib
+# ABI-incompatible. rust-bin uses upstream rustc which is compatible.
+BDEPEND="
+	llvm-core/clang
+	dev-lang/rust-bin
+"
+
+QA_FLAGS_IGNORED="usr/bin/javy"
+
+# Download wasm32-wasip1 stdlib at build time since the URL depends on
+# the installed rust-bin version.
+RESTRICT="network-sandbox"
+
+src_unpack() {
+	cargo_src_unpack
+
+	# Find rust-bin installation and download matching wasm32-wasip1 stdlib.
+	# Gentoo's dev-lang/rust cannot use prebuilt wasm targets due to ABI
+	# mismatch (the "(gentoo)" compiler identity). rust-bin is upstream
+	# rustc and IS compatible with the prebuilt stdlib.
+	local rustbin_dir
+	rustbin_dir=$(find /opt -maxdepth 1 -name "rust-bin-*" -type d | sort -V | tail -1) \
+		|| die "Could not find rust-bin installation"
+	[[ -n "${rustbin_dir}" ]] || die "dev-lang/rust-bin not found in /opt"
+
+	local rustbin_ver="${rustbin_dir##*rust-bin-}"
+	local rustbin_sysroot="${rustbin_dir}"
+
+	if [[ ! -d "${rustbin_sysroot}/lib/rustlib/wasm32-wasip1" ]]; then
+		einfo "Downloading wasm32-wasip1 stdlib for rust-bin ${rustbin_ver}..."
+		wget -q "https://static.rust-lang.org/dist/rust-std-${rustbin_ver}-wasm32-wasip1.tar.xz" \
+			-O "${T}/rust-std-wasm32-wasip1.tar.xz" \
+			|| die "Failed to download wasm32-wasip1 stdlib"
+		tar -xf "${T}/rust-std-wasm32-wasip1.tar.xz" -C "${T}" || die
+		cp -a "${T}/rust-std-${rustbin_ver}-wasm32-wasip1/rust-std-wasm32-wasip1/lib/rustlib/wasm32-wasip1" \
+			"${WORKDIR}/wasm32-wasip1-libs" || die
+	else
+		cp -a "${rustbin_sysroot}/lib/rustlib/wasm32-wasip1" \
+			"${WORKDIR}/wasm32-wasip1-libs" || die
+	fi
+
+	# Build a local sysroot overlay using rust-bin as the base, with the
+	# downloaded wasm32-wasip1 target added.
+	local wasi_sysroot="${WORKDIR}/wasi-sysroot"
+	mkdir -p "${wasi_sysroot}/lib/rustlib" || die
+	# Symlink everything from rust-bin's sysroot
+	local f
+	for f in "${rustbin_sysroot}/lib/rustlib"/*; do
+		ln -snf "${f}" "${wasi_sysroot}/lib/rustlib/${f##*/}" || die
+	done
+	for f in "${rustbin_sysroot}/lib/"*.so; do
+		[[ -e "${f}" ]] || continue
+		ln -snf "${f}" "${wasi_sysroot}/lib/" || die
+	done
+	# Add wasm32-wasip1 target (real copy, overriding any symlink)
+	rm -f "${wasi_sysroot}/lib/rustlib/wasm32-wasip1"
+	cp -a "${WORKDIR}/wasm32-wasip1-libs" \
+		"${wasi_sysroot}/lib/rustlib/wasm32-wasip1" || die
+}
+
+src_compile() {
+	local wasi_sysroot="${WORKDIR}/wasi-sysroot"
+
+	# Build the default plugin for wasm32-wasip1.
+	# Uses rust-bin's rustc (via --sysroot) because Gentoo's patched rustc
+	# is ABI-incompatible with the prebuilt wasm32-wasip1 stdlib.
+	(
+		unset CARGO_BUILD_RUSTFLAGS CARGO_ENCODED_RUSTFLAGS RUSTFLAGS
+		unset CARGO_BUILD_TARGET
+		export CARGO_PROFILE_RELEASE_LTO=false
+		export CARGO_PROFILE_RELEASE_STRIP=none
+		export CC_wasm32_wasip1=clang
+		local rustbin_dir
+		rustbin_dir=$(find /opt -maxdepth 1 -name "rust-bin-*" -type d | sort -V | tail -1)
+		export RUSTC="${rustbin_dir}/bin/rustc"
+		export CARGO="${rustbin_dir}/bin/cargo"
+		export CARGO_TARGET_WASM32_WASIP1_RUSTFLAGS="--sysroot ${wasi_sysroot} -C target-feature=+simd128"
+		"${CARGO}" build -p javy-plugin --target wasm32-wasip1 --release
+	) || die "plugin build failed"
+
+	# Build the CLI binary with the system Rust (Gentoo's dev-lang/rust).
+	# Its build.rs picks up and processes the wasm plugin.
+	local -x CARGO_PROFILE_RELEASE_LTO=off
+	cargo_src_compile -p javy-cli
+}
+
+src_install() {
+	dobin "$(cargo_target_dir)/javy"
+	dodoc README.md
+}
