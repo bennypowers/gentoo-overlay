@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription>
+		Raspberry Pi 5 kernel built from the Foundation's linux fork
+		using bcm2712_defconfig (16K pages). Supports /etc/kernel/config.d/
+		fragments for per-host customization (e.g. CONFIG_BTRFS_FS=y).
+	</longdescription>
+	<upstream>
+		<remote-id type="github">raspberrypi/linux</remote-id>
+	</upstream>
+</pkgmetadata>
