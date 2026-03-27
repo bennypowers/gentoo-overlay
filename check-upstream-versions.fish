@@ -186,8 +186,89 @@ function is_version_like
     string match -qr '^\d+[\.\d]*' $argv[1]
 end
 
+# Extract a YYYYMMDD date from a string (tag name, version, etc.)
+# Handles: stable_20250916, 1.20250916, 6.12.47_p20250916, etc.
+function extract_date_from_string
+    set -l str $argv[1]
+    set -l date_match (string match -r '(20\d{6})' $str)
+    if test (count $date_match) -ge 2
+        echo $date_match[2]
+        return 0
+    end
+    return 1
+end
+
+# Fetch latest non-semver tag info from GitHub
+# Returns: "tag_name|tag_date" or fails
+# Uses the GraphQL API to get tags sorted by commit date (descending)
+function fetch_github_latest_tag_by_date
+    set -l repo $argv[1]
+    set -l cache_file "$CACHE_DIR/github-tags-"(string replace -a / - $repo)
+
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
+
+    set -l owner (string split / $repo)[1]
+    set -l name (string split / $repo)[2]
+
+    # Use GraphQL to get the most recent tags by commit date
+    set -l query '
+    query($owner: String!, $name: String!) {
+      repository(owner: $owner, name: $name) {
+        refs(refPrefix: "refs/tags/", orderBy: {field: TAG_COMMIT_DATE, direction: DESC}, first: 10) {
+          nodes {
+            name
+            target {
+              ... on Commit { committedDate }
+              ... on Tag { target { ... on Commit { committedDate } } tagger { date } }
+            }
+          }
+        }
+      }
+    }'
+
+    set -l tag_data (gh api graphql \
+        -f query="$query" \
+        -f owner="$owner" \
+        -f name="$name" \
+        --jq '.data.repository.refs.nodes[] | .name + "|" + (.target.committedDate // .target.tagger.date // .target.target.committedDate // "")' \
+        2>/dev/null)
+
+    if test -z "$tag_data"
+        return 1
+    end
+
+    for line in $tag_data
+        set -l tag_name (string split '|' $line)[1]
+        set -l tag_raw_date (string split '|' $line)[2]
+
+        # Skip obvious pre-release tags
+        if string match -qri 'alpha|beta|rc|dev|nightly|canary' "$tag_name"
+            continue
+        end
+
+        # Try to extract a YYYYMMDD date from the tag name first
+        set -l tag_date (extract_date_from_string "$tag_name")
+
+        # Fall back to the commit/tagger date
+        if test -z "$tag_date" -a -n "$tag_raw_date"
+            set tag_date (string replace -r -a '-' '' (string sub -l 10 $tag_raw_date))
+        end
+
+        if test -n "$tag_date"
+            echo "$tag_name|$tag_date" | tee $cache_file
+            return 0
+        end
+    end
+
+    return 1
+end
+
 # Fetch latest version from GitHub
 # Checks both releases and tags, preferring whichever yields the newer version
+# Sets GITHUB_TAG_INFO when a non-semver tag is found (for date-based comparison)
 function fetch_github_version
     set -l repo $argv[1]
     set -l cache_file "$CACHE_DIR/github-"(string replace -a / - $repo)
@@ -245,6 +326,14 @@ function fetch_github_version
     if test -n "$ver"; and is_version_like $ver
         echo $ver | tee $cache_file
         return 0
+    end
+
+    # No semver found -- try date-based tag comparison
+    set -l tag_info (fetch_github_latest_tag_by_date $repo)
+    if test -n "$tag_info"
+        # Store for the caller to use in date-based comparison
+        set -g GITHUB_TAG_INFO $tag_info
+        return 2 # Special return code: non-semver tag found
     end
 
     return 1
@@ -349,17 +438,22 @@ function check_package
     set -l pkg_status "UNKNOWN"
 
     # Detect upstream and fetch latest version
+    set -g GITHUB_TAG_INFO ""
+    set -l fetch_result 1
     if is_pypi_package $ebuild_file
         set -l pypi_name (get_pypi_name $ebuild_file)
         set src "PyPI:$pypi_name"
         set latest_ver (fetch_pypi_version $pypi_name)
+        and set fetch_result 0
     else if set -l repo (extract_github_repo $ebuild_file)
         set src "GitHub:$repo"
         set latest_ver (fetch_github_version $repo)
+        set fetch_result $status
     end
 
     # Compare versions
-    if test -n "$latest_ver" -a "$latest_ver" != "unknown"
+    if test $fetch_result -eq 0 -a -n "$latest_ver" -a "$latest_ver" != "unknown"
+        # Standard semver comparison
         set -l comparison (compare_versions $current_ver $latest_ver)
         switch $comparison
             case outdated
@@ -370,6 +464,26 @@ function check_package
                 set pkg_status (printf "$COLOR_BLUE%s$COLOR_RESET" "AHEAD")
             case unknown
                 set pkg_status (printf "$COLOR_GRAY%s$COLOR_RESET" "UNKNOWN")
+        end
+    else if test $fetch_result -eq 2 -a -n "$GITHUB_TAG_INFO"
+        # Non-semver tag found -- do date-based comparison
+        set -l tag_name (string split '|' $GITHUB_TAG_INFO)[1]
+        set -l tag_date (string split '|' $GITHUB_TAG_INFO)[2]
+
+        # Try to extract a date from the current ebuild version
+        set -l current_date (extract_date_from_string $current_ver)
+
+        set latest_ver "$tag_name"
+        if test -n "$current_date" -a -n "$tag_date"
+            if test "$tag_date" -gt "$current_date"
+                set pkg_status (printf "$COLOR_YELLOW%s$COLOR_RESET" "NEWER-TAG")
+            else if test "$tag_date" = "$current_date"
+                set pkg_status (printf "$COLOR_GREEN%s$COLOR_RESET" "UP-TO-DATE")
+            else
+                set pkg_status (printf "$COLOR_BLUE%s$COLOR_RESET" "AHEAD")
+            end
+        else
+            set pkg_status (printf "$COLOR_YELLOW%s$COLOR_RESET" "CHECK-TAG")
         end
     else
         set pkg_status (printf "$COLOR_GRAY%s$COLOR_RESET" "UNKNOWN")
