@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+	</maintainer>
+	<longdescription>
+		Cockpit is a web-based graphical interface for servers, intended
+		for everyone, especially those who are new to Linux (including
+		Windows admins), familiar with Linux and want an easy, graphical
+		way to administer servers, or expert admins who mainly use other
+		tools but want an overview on individual systems.
+	</longdescription>
+	<use>
+		<flag name="doc">Build man pages with asciidoctor</flag>
+		<flag name="selinux">Build and install SELinux policy module</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">cockpit-project/cockpit</remote-id>
+	</upstream>
+</pkgmetadata>
