@@ -25,3 +25,6 @@ Before creating or modifying ebuilds:
 2. Run `./test-emerge.fish --pretend <cat/pkg>` to verify atom resolution
 3. Run `./test-emerge.fish <cat/pkg>` to test fetch and unpack
 4. Run `./test-emerge.fish --compile <cat/pkg>` to test compilation
+
+## Git
+Prefer not to use worktrees for this git repository
