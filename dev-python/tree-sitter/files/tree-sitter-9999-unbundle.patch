@@ -1,0 +1,23 @@
+Remove bundled tree-sitter core and link against system library.
+
+--- a/setup.py
++++ b/setup.py
+@@ -40,7 +40,6 @@ setup(
+         Extension(
+             name="tree_sitter._binding",
+             sources=[
+-                "tree_sitter/core/lib/src/lib.c",
+                 "tree_sitter/binding/language.c",
+                 "tree_sitter/binding/lookahead_iterator.c",
+                 "tree_sitter/binding/node.c",
+@@ -55,9 +54,8 @@ setup(
+             ],
+             include_dirs=[
+                 "tree_sitter/binding",
+-                "tree_sitter/core/lib/include",
+-                "tree_sitter/core/lib/src",
+             ],
++            libraries=["tree-sitter"],
+             define_macros=[
+                 ("_POSIX_C_SOURCE", "200112L"),
+                 ("_DEFAULT_SOURCE", None),
