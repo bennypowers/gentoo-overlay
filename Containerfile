@@ -17,8 +17,8 @@ RUN echo 'VIDEO_CARDS="amdgpu"' >> /etc/portage/make.conf \
  && echo 'AMDGPU_TARGETS="gfx1201"' >> /etc/portage/make.conf
 
 # Parallel builds
-RUN echo 'MAKEOPTS="-j$(nproc) -l$(nproc)"' >> /etc/portage/make.conf \
- && echo 'EMERGE_DEFAULT_OPTS="--jobs=4 --load-average=$(nproc)"' >> /etc/portage/make.conf
+RUN printf 'MAKEOPTS="-j%s -l%s"\n' "$(nproc)" "$(nproc)" >> /etc/portage/make.conf \
+ && printf 'EMERGE_DEFAULT_OPTS="--jobs=4 --load-average=%s"\n' "$(nproc)" >> /etc/portage/make.conf
 
 # Features: use binpkgs when available, don't block on missing
 RUN echo 'FEATURES="binpkg-multi-instance getbinpkg"' >> /etc/portage/make.conf
@@ -36,10 +36,10 @@ RUN mkdir -p /etc/portage/repos.conf \
 RUN printf '[guru]\nlocation = /var/db/repos/guru\nsync-type = git\nsync-uri = https://github.com/gentoo-mirror/guru.git\n' \
     > /etc/portage/repos.conf/guru.conf
 
-# Sync portage tree (baked into image, refresh by rebuilding)
-RUN emerge --sync
+# Sync gentoo tree first (rsync, no git needed)
+RUN emaint sync -r gentoo
 
-# Sync guru
-RUN emerge -1q dev-vcs/git && emaint sync -r guru
+# Set up binpkg trust, install git, sync guru
+RUN getuto && emerge -1q dev-vcs/git && emaint sync -r guru
 
 WORKDIR /var/db/repos/bennypowers
