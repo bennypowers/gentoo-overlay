@@ -7,12 +7,15 @@
 #   larry bump --revision <atom>           Create next revision of latest ebuild, then prepare
 #   larry prepare <ebuild-path> [...]      Download distfiles, generate dep caches, create Manifest
 #   larry prepare --all                    Prepare every ebuild in the overlay
+#   larry test [options] <atom>            Test-build an ebuild locally
 #   larry check [--fresh]                  Check all packages for upstream version updates
 #
 # Examples:
 #   larry bump dev-util/fish-lsp 1.2.0
 #   larry bump --revision dev-util/fish-lsp
 #   larry prepare dev-util/fish-lsp/fish-lsp-1.1.3.ebuild
+#   larry test dev-util/fish-lsp
+#   larry test --compile dev-util/javy-8.1.1
 #   larry check --fresh
 
 set -g OVERLAY_DIR (realpath (dirname (status --current-filename))/..)
@@ -43,12 +46,14 @@ function print_usage
     echo "  larry bump --revision <atom>           Revision bump, then prepare"
     echo "  larry prepare <ebuild-path> [...]      Fetch distfiles, gen caches, manifest"
     echo "  larry prepare --all                    Prepare every ebuild in the overlay"
+    echo "  larry test [options] <atom>            Test-build locally (default: fetch+unpack)"
     echo "  larry check [--fresh]                  Check upstream versions"
     echo ""
     echo "Examples:"
     echo "  larry bump dev-util/fish-lsp 1.2.0"
     echo "  larry bump --revision dev-util/fish-lsp"
     echo "  larry prepare dev-util/vtsls/vtsls-0.3.0.ebuild"
+    echo "  larry test --compile dev-util/javy-8.1.1"
     echo "  larry check --fresh"
 end
 
@@ -249,36 +254,45 @@ function do_prepare_one -a ebuild_path forced_type
     end
 end
 
-# ── bump ────────────────────────────────────────────────────────────────────────
+# ── atom parsing (shared by bump and test) ──────────────────────────────────────
 
-# Parse a category/package atom, resolve the package directory.
+# Parse a category/package[-version] atom, resolve the package directory.
+# Sets: _atom_category, _atom_pn, _atom_version (empty if no version), _atom_pkg_dir
 function parse_atom -a atom
     if not string match -qr '^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.+-]+$' $atom
-        err "Invalid atom: $atom (expected category/package)"
+        err "Invalid atom: $atom (expected category/package[-version])"
         return 1
     end
 
-    set -g _category (string split / $atom)[1]
+    set -g _atom_category (string split / $atom)[1]
     set -l remainder (string split / $atom)[2]
 
-    set -l cat_dir "$OVERLAY_DIR/$_category"
+    set -l cat_dir "$OVERLAY_DIR/$_atom_category"
     if not test -d "$cat_dir"
-        err "Category not found: $_category"
+        err "Category not found: $_atom_category"
         return 1
     end
 
+    # Try exact directory match (no version in atom)
     if test -d "$cat_dir/$remainder"
-        set -g _bump_pn $remainder
-        set -g _pkg_dir "$cat_dir/$remainder"
+        set -g _atom_pn $remainder
+        set -g _atom_version ""
+        set -g _atom_pkg_dir "$cat_dir/$remainder"
         return 0
     end
 
+    # Walk backwards through hyphens to find the longest package name matching a directory
     set -l parts (string split - $remainder)
     for i in (seq (count $parts) -1 1)
         set -l candidate (string join - $parts[1..$i])
         if test -d "$cat_dir/$candidate"
-            set -g _bump_pn $candidate
-            set -g _pkg_dir "$cat_dir/$candidate"
+            set -g _atom_pn $candidate
+            set -g _atom_pkg_dir "$cat_dir/$candidate"
+            if test $i -lt (count $parts)
+                set -g _atom_version (string join - $parts[(math $i + 1)..(count $parts)])
+            else
+                set -g _atom_version ""
+            end
             return 0
         end
     end
@@ -287,15 +301,42 @@ function parse_atom -a atom
     return 1
 end
 
+# Find the latest non-9999 ebuild for the parsed atom.
+# Sets: _latest_ebuild, _latest_pv
 function find_latest_ebuild
-    set -l ebuilds (find $_pkg_dir -name "$_bump_pn-*.ebuild" ! -name "*-9999.ebuild" 2>/dev/null | sort -V)
+    set -l ebuilds (find $_atom_pkg_dir -name "$_atom_pn-*.ebuild" ! -name "*-9999.ebuild" 2>/dev/null | sort -V)
     if test -z "$ebuilds"
-        err "No ebuilds found in $_pkg_dir"
+        err "No ebuilds found in $_atom_pkg_dir"
         return 1
     end
     set -g _latest_ebuild $ebuilds[-1]
-    set -l basename (basename $_latest_ebuild .ebuild)
-    set -g _latest_pv (string replace "$_bump_pn-" "" $basename)
+    set -l bn (basename $_latest_ebuild .ebuild)
+    set -g _latest_pv (string replace "$_atom_pn-" "" $bn)
+end
+
+# Find a specific or latest ebuild for the parsed atom.
+# Returns the ebuild path on stdout.
+function find_ebuild_for_atom
+    if test -n "$_atom_version"
+        set -l ebuild "$_atom_pkg_dir/$_atom_pn-$_atom_version.ebuild"
+        if test -f "$ebuild"
+            echo $ebuild
+            return 0
+        end
+        err "Ebuild not found: $_atom_pn-$_atom_version"
+        return 1
+    end
+
+    # No version: find latest (including 9999 fallback)
+    set -l ebuilds (find $_atom_pkg_dir -name "$_atom_pn-*.ebuild" ! -name "*-9999.ebuild" 2>/dev/null | sort -V)
+    if test -z "$ebuilds"
+        set ebuilds (find $_atom_pkg_dir -name "$_atom_pn-9999.ebuild" 2>/dev/null)
+    end
+    if test -z "$ebuilds"
+        err "No ebuilds found in $_atom_pkg_dir"
+        return 1
+    end
+    echo $ebuilds[-1]
 end
 
 function next_revision -a pv
@@ -312,7 +353,7 @@ function do_bump -a atom new_pv
     parse_atom $atom; or return 1
     find_latest_ebuild; or return 1
 
-    set -l new_ebuild "$_pkg_dir/$_bump_pn-$new_pv.ebuild"
+    set -l new_ebuild "$_atom_pkg_dir/$_atom_pn-$new_pv.ebuild"
     if test -f "$new_ebuild"
         err "Already exists: $new_ebuild"
         return 1
@@ -326,6 +367,85 @@ function do_bump -a atom new_pv
     msg "    to: $rel_dst"
 
     do_prepare_one $rel_dst
+end
+
+# ── test ───────────────────────────────────────────────────────────────────────
+
+function do_test
+    set -l mode "unpack"
+    set -l pretend false
+    set -l atom ""
+
+    for arg in $argv
+        switch $arg
+            case --compile -c; set mode "compile"
+            case --merge -m;   set mode "merge"
+            case --clean -C;   set mode "clean"
+            case --pretend -p; set pretend true
+            case --help -h
+                echo "Usage: larry test [options] <atom>"
+                echo ""
+                echo "Options:"
+                echo "  --compile, -c    Run through compile phase (default: fetch+unpack)"
+                echo "  --merge, -m      Full build + install to image (NOT live system)"
+                echo "  --clean, -C      Clean build artifacts"
+                echo "  --pretend, -p    Show what would be run"
+                return 0
+            case '-*'; err "Unknown option: $arg"; return 1
+            case '*'
+                if test -n "$atom"; err "Multiple atoms not supported"; return 1; end
+                set atom $arg
+        end
+    end
+
+    if test -z "$atom"; err "No package atom specified"; return 1; end
+
+    parse_atom $atom; or return 1
+    set -l ebuild (find_ebuild_for_atom); or return 1
+    set -l ver (string replace "$_atom_pn-" "" (basename $ebuild .ebuild))
+
+    msg "Package: $_atom_category/$_atom_pn-$ver"
+    msg "Ebuild:  $ebuild"
+
+    set -l phases
+    set -l description
+    switch $mode
+        case unpack;  set phases clean fetch unpack;         set description "fetch and unpack"
+        case compile; set phases clean fetch unpack compile;  set description "compile"
+        case merge;   set phases clean fetch unpack compile install; set description "full build + install (to image only)"
+        case clean;   set phases clean;                       set description "clean"
+    end
+
+    msg "Mode:    $description ($phases)"
+    echo ""
+
+    if $pretend
+        warn "Pretend mode: would run:"
+        echo "  ebuild $ebuild $phases"
+        return 0
+    end
+
+    mkdir -p $DISTDIR
+    set -l tmpdir /tmp/portage-test
+    mkdir -p $tmpdir
+
+    set -x FEATURES "-sandbox -usersandbox -network-sandbox -ipc-sandbox -pid-sandbox"
+    set -x PORTAGE_TMPDIR $tmpdir
+    set -x DISTDIR $DISTDIR
+    set -x GENTOO_MIRRORS ""
+    ebuild $ebuild $phases
+
+    set -l status_code $status
+    echo ""
+
+    if test $status_code -eq 0
+        msg "Success: $_atom_category/$_atom_pn-$ver ($description)"
+    else
+        err "Failed: $_atom_category/$_atom_pn-$ver ($description)"
+        err "Exit code: $status_code"
+    end
+
+    return $status_code
 end
 
 # ── main ────────────────────────────────────────────────────────────────────────
@@ -411,6 +531,9 @@ switch $subcommand
             or set failures (math $failures + 1)
         end
         if test $failures -gt 0; err "$failures package(s) failed"; exit 1; end
+
+    case test
+        do_test $rest
 
     case check
         # Delegate to the standalone check script (it's big enough to stay separate)

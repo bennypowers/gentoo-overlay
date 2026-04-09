@@ -18,7 +18,6 @@ need no sudo or interactive input.
   - `npm`: downloads from npm registry, generates deps tarball, uploads to GitHub release
   - `cargo`: downloads Cargo.lock from GitHub tag, parses registry crates, updates CRATES variable
   - `generic`: just runs `ebuild digest`
-- `test-emerge` - Test-build ebuilds locally without pushing.
 - `check-upstream-versions` - Check for upstream version updates. Supports PyPI, GitHub,
   and npm registry. Use `--fresh` to clear cache. Cache expires after 6 hours.
 
@@ -29,8 +28,8 @@ need no sudo or interactive input.
 1. Create `<cat>/<pkg>/` directory, write the ebuild and `metadata.xml`
 2. `scripts/larry prepare <cat>/<pkg>/<pkg>-<ver>.ebuild`
 3. `pkgcheck scan -r bennypowers <cat>/<pkg>`
-4. `scripts/test-emerge --pretend <cat>/<pkg>`
-5. `scripts/test-emerge <cat>/<pkg>`
+4. `scripts/larry test --pretend <cat>/<pkg>`
+5. `scripts/larry test <cat>/<pkg>`
 
 ### Version bump (upstream release)
 
@@ -38,7 +37,7 @@ need no sudo or interactive input.
 2. Edit the new ebuild if SRC_URI, deps, or patches changed
 3. Re-run `scripts/larry prepare <cat>/<pkg>/<pkg>-<new-version>.ebuild` if edited
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
-5. `scripts/test-emerge <cat>/<pkg>-<new-version>`
+5. `scripts/larry test <cat>/<pkg>-<new-version>`
 
 ### Revision bump (fix existing ebuild)
 
@@ -46,7 +45,7 @@ need no sudo or interactive input.
 2. Edit the new revision with the fix
 3. Re-run `scripts/larry prepare <cat>/<pkg>/<pkg>-<ver>-rN.ebuild` if edited
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
-5. `scripts/test-emerge <cat>/<pkg>-<ver>-rN`
+5. `scripts/larry test <cat>/<pkg>-<ver>-rN`
 
 ## Validating Ebuilds
 
