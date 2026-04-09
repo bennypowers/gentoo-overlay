@@ -20,6 +20,7 @@ Everything goes through `scripts/larry`.
 
 | Command            | What it does |
 | ------------------ | ------------ |
+| `larry import`     | Import an ebuild from another overlay (`::guru`, `::gentoo`). Rewrites maintainer, runs prepare. |
 | `larry bump`       | Copy latest ebuild to a new version or `--revision`, then prepare it. One command to moo-ve upstream. |
 | `larry prepare`    | Download distfiles, generate dep caches, create Manifest. Auto-detects npm/cargo/generic. `--all` for the whole herd. |
 | `larry test`       | Test-build ebuilds locally. `--compile`, `--merge`, or `--pretend`. `--emerge` for a clean-room podman build with GPU passthrough. No bull. |

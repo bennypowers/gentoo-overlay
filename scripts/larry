@@ -7,6 +7,7 @@
 #   larry bump --revision <atom>           Create next revision of latest ebuild, then prepare
 #   larry prepare <ebuild-path> [...]      Download distfiles, generate dep caches, create Manifest
 #   larry prepare --all                    Prepare every ebuild in the overlay
+#   larry import [--from <repo>] <cat/pkg>  Import ebuild from another overlay
 #   larry test [options] <atom>            Test-build an ebuild locally
 #   larry upstream [--fresh]               Check all packages for upstream version updates
 #
@@ -50,6 +51,7 @@ function print_usage
     echo "  larry bump --revision <atom>           Revision bump, then prepare"
     echo "  larry prepare <ebuild-path> [...]      Fetch distfiles, gen caches, manifest"
     echo "  larry prepare --all                    Prepare every ebuild in the overlay"
+    echo "  larry import <cat/pkg>                 Import ebuild from another overlay (::guru, ::gentoo)"
     echo "  larry test [options] <atom>            Test-build locally (default: fetch+unpack)"
     echo "  larry test --emerge <atom>             Real emerge in a clean container (GPU passthrough)"
     echo "  larry upstream [--fresh]               Check for upstream version updates"
@@ -901,6 +903,146 @@ function do_upstream
     echo "Use --fresh to force a refresh."
 end
 
+# ── import ─────────────────────────────────────────────────────────────────────
+
+function find_package_in_repos -a cat_pkg
+    # Search all repos for a package, return the repo path
+    set -l category (string split / $cat_pkg)[1]
+    set -l package (string split / $cat_pkg)[2]
+
+    for repo_dir in /var/db/repos/*/
+        set -l repo_name (basename $repo_dir)
+        # Skip our own overlay
+        if test "$repo_dir" = /var/db/repos/bennypowers/
+            continue
+        end
+        if test -d "$repo_dir$category/$package"
+            echo "$repo_dir$category/$package"
+            return 0
+        end
+    end
+    return 1
+end
+
+function do_import
+    set -l atom ""
+    set -l from_repo ""
+
+    for arg in $argv
+        switch $arg
+            case --help -h
+                echo "Usage: larry import [--from <repo-path>] <cat/pkg>"
+                echo ""
+                echo "Import an ebuild from another overlay (e.g., ::guru, ::gentoo)."
+                echo "Copies the latest ebuild, metadata.xml, and files/ directory."
+                echo "Rewrites maintainer to overlay owner and runs prepare."
+                echo ""
+                echo "If --from is omitted, searches all repos in /var/db/repos/."
+                return 0
+            case --from
+                set from_repo __next__
+            case '--from=*'
+                set from_repo (string replace '--from=' '' $arg)
+            case '-*'
+                err "Unknown option: $arg"; return 1
+            case '*'
+                if test "$from_repo" = __next__
+                    set from_repo $arg
+                else if test -z "$atom"
+                    set atom $arg
+                else
+                    err "Too many arguments"; return 1
+                end
+        end
+    end
+
+    if test -z "$atom"; err "No package atom specified"; return 1; end
+
+    set -l category (string split / $atom)[1]
+    set -l package (string split / $atom)[2]
+
+    # Find the source
+    set -l src_dir
+    if test -n "$from_repo" -a "$from_repo" != __next__
+        set src_dir "$from_repo"
+        if not test -d "$src_dir"
+            # Try as a repo name
+            set src_dir "/var/db/repos/$from_repo/$category/$package"
+        end
+        if not test -d "$src_dir"
+            err "Source not found: $from_repo"
+            return 1
+        end
+    else
+        set src_dir (find_package_in_repos $atom)
+        if test -z "$src_dir"
+            err "Package $atom not found in any overlay"
+            return 1
+        end
+    end
+
+    # Determine which repo it came from
+    set -l repo_name (basename (dirname (dirname $src_dir)))
+    msg "Importing $atom from ::$repo_name"
+    msg "Source:   $src_dir"
+
+    # Find the latest ebuild in the source
+    set -l src_ebuilds (find $src_dir -name "$package-*.ebuild" ! -name "*-9999.ebuild" 2>/dev/null | sort -V)
+    if test -z "$src_ebuilds"
+        err "No ebuilds found in $src_dir"
+        return 1
+    end
+    set -l src_ebuild $src_ebuilds[-1]
+    set -l ebuild_name (basename $src_ebuild)
+
+    # Create destination
+    set -l dst_dir "$OVERLAY_DIR/$category/$package"
+    mkdir -p "$dst_dir"
+
+    # Copy ebuild
+    cp "$src_ebuild" "$dst_dir/$ebuild_name"
+    msg "Copied:   $ebuild_name"
+
+    # Copy files/ if it exists
+    if test -d "$src_dir/files"
+        cp -r "$src_dir/files" "$dst_dir/"
+        msg "Copied:   files/"
+    end
+
+    # Create or copy metadata.xml with our maintainer
+    set -l upstream_id ""
+    if test -f "$src_dir/metadata.xml"
+        # Extract upstream remote-id if present
+        set upstream_id (grep -oP '<remote-id type="\w+">[^<]+</remote-id>' "$src_dir/metadata.xml" | head -1)
+    end
+
+    set -l meta "<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE pkgmetadata SYSTEM \"https://www.gentoo.org/dtd/metadata.dtd\">
+<pkgmetadata>
+	<maintainer type=\"person\">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>"
+
+    if test -n "$upstream_id"
+        set meta "$meta
+	<upstream>
+		$upstream_id
+	</upstream>"
+    end
+
+    set meta "$meta
+</pkgmetadata>"
+
+    printf "%s\n" $meta > "$dst_dir/metadata.xml"
+    msg "Created:  metadata.xml"
+
+    # Prepare the imported ebuild
+    set -l rel_path "$category/$package/$ebuild_name"
+    msg ""
+    do_prepare_one $rel_path
+end
+
 # ── main ────────────────────────────────────────────────────────────────────────
 
 if test (count $argv) -eq 0
@@ -990,6 +1132,9 @@ switch $subcommand
             or set failures (math $failures + 1)
         end
         if test $failures -gt 0; err "$failures package(s) failed"; exit 1; end
+
+    case import
+        do_import $rest
 
     case test
         do_test $rest

@@ -14,6 +14,7 @@ Script files are located in `./scripts/`. All scripts are self-contained and
 need no sudo or interactive input.
 
 - `larry` - Overlay management CLI with subcommands:
+  - `import` - Import ebuild from another overlay (::guru, ::gentoo), rewrite maintainer, prepare
   - `bump` - Copy latest ebuild to new version or revision, then prepare
   - `prepare` - Download distfiles, generate dep caches, upload, and create Manifest.
     Auto-detects type from ebuild content:
