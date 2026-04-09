@@ -97,9 +97,10 @@ function generate_manifest -a ebuild_path
     msg "Generating Manifest..."
     mkdir -p $DISTDIR
     cd $OVERLAY_DIR
-    DISTDIR=$DISTDIR GENTOO_MIRRORS="" ebuild $ebuild_path digest 2>&1 | tail -2
+    set -l cat_pkg (basename (dirname (dirname $ebuild_path)))/(basename (dirname $ebuild_path))
+    pkgdev manifest -d $DISTDIR $cat_pkg 2>&1
     or begin
-        err "ebuild digest failed"
+        err "manifest generation failed"
         return 1
     end
     msg "Done: $_p"
@@ -900,7 +901,13 @@ switch $subcommand
             end
         end
         if $all
-            set ebuilds (find $OVERLAY_DIR -name "*.ebuild" -type f | sort)
+            # Use pkgdev manifest directly for bulk updates -- it's smarter
+            # about skipping unmodified packages
+            msg "Updating all manifests..."
+            mkdir -p $DISTDIR
+            cd $OVERLAY_DIR
+            pkgdev manifest -d $DISTDIR
+            exit $status
         end
         if test (count $ebuilds) -eq 0
             echo "Usage: larry prepare [--all] <ebuild-path> [...]"
