@@ -1,0 +1,423 @@
+#!/usr/bin/env fish
+
+# larry: Gentoo overlay management tool.
+#
+# Usage:
+#   larry bump <atom> <new-version>        Copy latest ebuild to new version, then prepare
+#   larry bump --revision <atom>           Create next revision of latest ebuild, then prepare
+#   larry prepare <ebuild-path> [...]      Download distfiles, generate dep caches, create Manifest
+#   larry prepare --all                    Prepare every ebuild in the overlay
+#   larry check [--fresh]                  Check all packages for upstream version updates
+#
+# Examples:
+#   larry bump dev-util/fish-lsp 1.2.0
+#   larry bump --revision dev-util/fish-lsp
+#   larry prepare dev-util/fish-lsp/fish-lsp-1.1.3.ebuild
+#   larry check --fresh
+
+set -g OVERLAY_DIR (realpath (dirname (status --current-filename))/..)
+set -g DISTDIR /tmp/distfiles
+set -g GH_REPO (git -C $OVERLAY_DIR remote get-url origin | string replace -r '.*github\.com[:/]' '' | string replace -r '\.git$' '')
+
+set -g COLOR_RESET \e\[0m
+set -g COLOR_GREEN \e\[32m
+set -g COLOR_RED \e\[31m
+set -g COLOR_YELLOW \e\[33m
+set -g COLOR_BOLD \e\[1m
+
+function msg
+    printf "$COLOR_BOLD$COLOR_GREEN>>>$COLOR_RESET %s\n" "$argv"
+end
+
+function warn
+    printf "$COLOR_BOLD$COLOR_YELLOW***$COLOR_RESET %s\n" "$argv" >&2
+end
+
+function err
+    printf "$COLOR_BOLD$COLOR_RED!!!$COLOR_RESET %s\n" "$argv" >&2
+end
+
+function print_usage
+    echo "Usage:"
+    echo "  larry bump <atom> <new-version>        Version bump, then prepare"
+    echo "  larry bump --revision <atom>           Revision bump, then prepare"
+    echo "  larry prepare <ebuild-path> [...]      Fetch distfiles, gen caches, manifest"
+    echo "  larry prepare --all                    Prepare every ebuild in the overlay"
+    echo "  larry check [--fresh]                  Check upstream versions"
+    echo ""
+    echo "Examples:"
+    echo "  larry bump dev-util/fish-lsp 1.2.0"
+    echo "  larry bump --revision dev-util/fish-lsp"
+    echo "  larry prepare dev-util/vtsls/vtsls-0.3.0.ebuild"
+    echo "  larry check --fresh"
+end
+
+# ── Shared helpers ──────────────────────────────────────────────────────────────
+
+# Expand ${PN}, ${PV}, ${P}, and custom ebuild variables in a string.
+function expand_ebuild_vars -a text ebuild_path pn pv p
+    for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_path)
+        set -l key (string replace -r '=.*' '' $line)
+        set -l val (string match -r '"([^"]*)"' $line)[2]
+        set text (string replace -a "\${$key}" $val $text)
+    end
+    set text (string replace -a '${PN}' $pn $text)
+    set text (string replace -a '${PV}' $pv $text)
+    set text (string replace -a '${P}' $p $text)
+    echo $text
+end
+
+# Parse PN, PV, P from an ebuild file path.
+function parse_ebuild -a ebuild_path
+    set -g _pn (basename (dirname $ebuild_path))
+    set -l ebuild_basename (basename $ebuild_path .ebuild)
+    set -g _pv (string replace "$_pn-" "" $ebuild_basename)
+    set -g _p "$_pn-$_pv"
+end
+
+function detect_type -a ebuild_path
+    if grep -q 'mirror://npm/' $ebuild_path
+        echo npm
+    else if grep -q '^CRATES="' $ebuild_path
+        echo cargo
+    else
+        echo generic
+    end
+end
+
+function generate_manifest -a ebuild_path
+    msg "Generating Manifest..."
+    mkdir -p $DISTDIR
+    cd $OVERLAY_DIR
+    DISTDIR=$DISTDIR GENTOO_MIRRORS="" ebuild $ebuild_path digest 2>&1 | tail -2
+    or begin
+        err "ebuild digest failed"
+        return 1
+    end
+    msg "Done: $_p"
+    echo ""
+end
+
+# ── prepare: npm ────────────────────────────────────────────────────────────────
+
+function prepare_npm -a ebuild_path
+    parse_ebuild $ebuild_path
+
+    set -l npm_line (grep 'mirror://npm/' $ebuild_path | string trim)
+    set -l expanded (expand_ebuild_vars "$npm_line" $ebuild_path $_pn $_pv $_p)
+
+    set -l distfile_name
+    if string match -q '* -> *' $expanded
+        set distfile_name (string split ' -> ' $expanded)[2]
+        set expanded (string split ' -> ' $expanded)[1]
+    else
+        set distfile_name (basename $expanded)
+    end
+
+    set -l npm_url (string replace 'mirror://npm/' 'https://registry.npmjs.org/' $expanded)
+    set -l npm_pkg (string replace -r '/-/.*' '' (string replace 'https://registry.npmjs.org/' '' $npm_url))
+
+    msg "Package:  $_p"
+    msg "npm:      $npm_pkg"
+    msg "Distfile: $distfile_name"
+
+    mkdir -p $DISTDIR
+
+    msg "Downloading source tarball..."
+    curl -sfLo "$DISTDIR/$distfile_name" "$npm_url"
+    or begin; err "Failed to download $npm_url"; return 1; end
+    msg "Source: $DISTDIR/$distfile_name ("(du -h "$DISTDIR/$distfile_name" | cut -f1)")"
+
+    msg "Generating deps tarball..."
+    set -l work (mktemp -d)
+    cd "$work"
+
+    npm --cache ./npm-cache install "$DISTDIR/$distfile_name" 2>&1
+    or begin; err "npm install failed"; rm -rf "$work"; return 1; end
+
+    tar -caf "$DISTDIR/$_p-deps.tar.xz" npm-cache
+    or begin; err "tar failed"; rm -rf "$work"; return 1; end
+    rm -rf "$work"
+    msg "Deps:   $DISTDIR/$_p-deps.tar.xz ("(du -h "$DISTDIR/$_p-deps.tar.xz" | cut -f1)")"
+
+    msg "Uploading to GitHub release..."
+    if gh release view $_p --repo $GH_REPO >/dev/null 2>&1
+        gh release upload $_p "$DISTDIR/$_p-deps.tar.xz" --repo $GH_REPO --clobber 2>&1
+    else
+        gh release create $_p --repo $GH_REPO \
+            --title "$_p deps" \
+            --notes "npm dependency cache for $_p" \
+            "$DISTDIR/$_p-deps.tar.xz" 2>&1
+    end
+    or begin; err "GitHub release upload failed"; return 1; end
+
+    generate_manifest $ebuild_path
+end
+
+# ── prepare: cargo ──────────────────────────────────────────────────────────────
+
+function prepare_cargo -a ebuild_path
+    parse_ebuild $ebuild_path
+
+    msg "Package: $_p (cargo)"
+
+    set -l gh_url (grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' $ebuild_path | head -1)
+    if test -z "$gh_url"
+        err "Could not find GitHub URL in SRC_URI"
+        return 1
+    end
+    set -l repo (echo $gh_url | string replace -r '.*github\.com/' '')
+
+    set -l tag "v$_pv"
+    set tag (string replace -r -- '-r[0-9]+$' '' $tag)
+
+    msg "Repo:    $repo"
+    msg "Tag:     $tag"
+
+    set -l cargo_lock_file (mktemp)
+    msg "Downloading Cargo.lock..."
+    curl -sfo "$cargo_lock_file" "https://raw.githubusercontent.com/$repo/$tag/Cargo.lock"
+    or begin; err "Failed to download Cargo.lock"; rm -f "$cargo_lock_file"; return 1; end
+
+    msg "Parsing crates and updating ebuild..."
+    set -l crate_count (python3 -c "
+import re, sys
+
+with open(sys.argv[1]) as f:
+    lock = f.read()
+with open(sys.argv[2]) as f:
+    ebuild = f.read()
+
+packages = re.findall(
+    r'\[\[package\]\]\nname = \"([^\"]+)\"\nversion = \"([^\"]+)\"(?:\nsource = \"([^\"]*?)\")?',
+    lock
+)
+crates = sorted(
+    f'{name}@{version}'
+    for name, version, source in packages
+    if source and source.startswith('registry+')
+)
+
+if not crates:
+    sys.exit(1)
+
+block = 'CRATES=\"\n' + '\n'.join(f'\t{c}' for c in crates) + '\n\"'
+ebuild = re.sub(r'CRATES=\".*?\"', block, ebuild, count=1, flags=re.DOTALL)
+
+with open(sys.argv[2], 'w') as f:
+    f.write(ebuild)
+
+print(len(crates))
+" "$cargo_lock_file" "$ebuild_path")
+    rm -f "$cargo_lock_file"
+
+    if test -z "$crate_count"
+        err "No crates found in Cargo.lock"
+        return 1
+    end
+
+    msg "Updated CRATES ($crate_count registry crates)"
+    generate_manifest $ebuild_path
+end
+
+# ── prepare: generic ────────────────────────────────────────────────────────────
+
+function prepare_generic -a ebuild_path
+    parse_ebuild $ebuild_path
+    msg "Package: $_p (generic)"
+    generate_manifest $ebuild_path
+end
+
+# ── prepare dispatch ────────────────────────────────────────────────────────────
+
+function do_prepare_one -a ebuild_path forced_type
+    if not test -f $ebuild_path
+        err "Not a file: $ebuild_path"
+        return 1
+    end
+
+    set -l type $forced_type
+    if test -z "$type"
+        set type (detect_type $ebuild_path)
+    end
+
+    switch $type
+        case npm;     prepare_npm $ebuild_path
+        case cargo;   prepare_cargo $ebuild_path
+        case generic; prepare_generic $ebuild_path
+        case '*';     err "Unknown type: $type"; return 1
+    end
+end
+
+# ── bump ────────────────────────────────────────────────────────────────────────
+
+# Parse a category/package atom, resolve the package directory.
+function parse_atom -a atom
+    if not string match -qr '^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.+-]+$' $atom
+        err "Invalid atom: $atom (expected category/package)"
+        return 1
+    end
+
+    set -g _category (string split / $atom)[1]
+    set -l remainder (string split / $atom)[2]
+
+    set -l cat_dir "$OVERLAY_DIR/$_category"
+    if not test -d "$cat_dir"
+        err "Category not found: $_category"
+        return 1
+    end
+
+    if test -d "$cat_dir/$remainder"
+        set -g _bump_pn $remainder
+        set -g _pkg_dir "$cat_dir/$remainder"
+        return 0
+    end
+
+    set -l parts (string split - $remainder)
+    for i in (seq (count $parts) -1 1)
+        set -l candidate (string join - $parts[1..$i])
+        if test -d "$cat_dir/$candidate"
+            set -g _bump_pn $candidate
+            set -g _pkg_dir "$cat_dir/$candidate"
+            return 0
+        end
+    end
+
+    err "Package not found: $atom"
+    return 1
+end
+
+function find_latest_ebuild
+    set -l ebuilds (find $_pkg_dir -name "$_bump_pn-*.ebuild" ! -name "*-9999.ebuild" 2>/dev/null | sort -V)
+    if test -z "$ebuilds"
+        err "No ebuilds found in $_pkg_dir"
+        return 1
+    end
+    set -g _latest_ebuild $ebuilds[-1]
+    set -l basename (basename $_latest_ebuild .ebuild)
+    set -g _latest_pv (string replace "$_bump_pn-" "" $basename)
+end
+
+function next_revision -a pv
+    if string match -qr -- '-r([0-9]+)$' $pv
+        set -l rev (string match -r -- '-r([0-9]+)$' $pv)[2]
+        set -l next_rev (math $rev + 1)
+        string replace -r -- '-r[0-9]+$' "-r$next_rev" $pv
+    else
+        echo "$pv-r1"
+    end
+end
+
+function do_bump -a atom new_pv
+    parse_atom $atom; or return 1
+    find_latest_ebuild; or return 1
+
+    set -l new_ebuild "$_pkg_dir/$_bump_pn-$new_pv.ebuild"
+    if test -f "$new_ebuild"
+        err "Already exists: $new_ebuild"
+        return 1
+    end
+
+    cp "$_latest_ebuild" "$new_ebuild"; or begin; err "Copy failed"; return 1; end
+
+    set -l rel_src (string replace "$OVERLAY_DIR/" "" $_latest_ebuild)
+    set -l rel_dst (string replace "$OVERLAY_DIR/" "" $new_ebuild)
+    msg "Copied: $rel_src"
+    msg "    to: $rel_dst"
+
+    do_prepare_one $rel_dst
+end
+
+# ── main ────────────────────────────────────────────────────────────────────────
+
+if test (count $argv) -eq 0
+    print_usage
+    exit 1
+end
+
+set -l subcommand $argv[1]
+set -l rest $argv[2..]
+
+switch $subcommand
+    case help --help -h
+        print_usage
+        exit 0
+
+    case bump
+        set -l mode version
+        set -l atom ""
+        set -l new_version ""
+        for arg in $rest
+            switch $arg
+                case --help -h
+                    echo "Usage: larry bump [--revision] <atom> [<version>]"
+                    exit 0
+                case --revision -r
+                    set mode revision
+                case '-*'
+                    err "Unknown option: $arg"; exit 1
+                case '*'
+                    if test -z "$atom"; set atom $arg
+                    else if test -z "$new_version"; set new_version $arg
+                    else; err "Too many arguments"; exit 1; end
+            end
+        end
+        if test -z "$atom"; err "No package atom specified"; exit 1; end
+        switch $mode
+            case revision
+                set -l pv_for_rev ""
+                parse_atom $atom; or exit 1
+                find_latest_ebuild; or exit 1
+                set pv_for_rev (next_revision $_latest_pv)
+                do_bump $atom $pv_for_rev
+            case version
+                if test -z "$new_version"; err "No version specified (use --revision for revision bumps)"; exit 1; end
+                do_bump $atom $new_version
+        end
+
+    case prepare
+        set -l forced_type ""
+        set -l ebuilds
+        set -l all false
+        for arg in $rest
+            switch $arg
+                case --help -h
+                    echo "Usage: larry prepare [--type npm|cargo|generic] [--all] <ebuild-path> [...]"
+                    exit 0
+                case --all -a
+                    set all true
+                case --type
+                    set forced_type __next__
+                case '--type=*'
+                    set forced_type (string replace '--type=' '' $arg)
+                case '*'
+                    if test "$forced_type" = __next__
+                        set forced_type $arg
+                    else
+                        set -a ebuilds $arg
+                    end
+            end
+        end
+        if $all
+            set ebuilds (find $OVERLAY_DIR -name "*.ebuild" -type f | sort)
+        end
+        if test (count $ebuilds) -eq 0
+            echo "Usage: larry prepare [--all] <ebuild-path> [...]"
+            exit 1
+        end
+        set -l failures 0
+        for ebuild in $ebuilds
+            do_prepare_one $ebuild $forced_type
+            or set failures (math $failures + 1)
+        end
+        if test $failures -gt 0; err "$failures package(s) failed"; exit 1; end
+
+    case check
+        # Delegate to the standalone check script (it's big enough to stay separate)
+        exec $OVERLAY_DIR/scripts/check-upstream-versions $rest
+
+    case '*'
+        err "Unknown command: $subcommand"
+        print_usage
+        exit 1
+end

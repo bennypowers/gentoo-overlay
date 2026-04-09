@@ -13,12 +13,11 @@ Before creating or modifying ebuilds, read the README.md for the current best pr
 Script files are located in `./scripts/`. All scripts are self-contained and
 need no sudo or interactive input.
 
-- `prepare-ebuild` - Download distfiles, generate dep caches, upload, and create Manifest.
+- `larry` - Download distfiles, generate dep caches, upload, and create Manifest.
   Auto-detects type from ebuild content:
   - `npm`: downloads from npm registry, generates deps tarball, uploads to GitHub release
   - `cargo`: downloads Cargo.lock from GitHub tag, parses registry crates, updates CRATES variable
   - `generic`: just runs `ebuild digest`
-- `bump-ebuild` - Copy latest ebuild to a new version or next revision, then prepare it.
 - `test-emerge` - Test-build ebuilds locally without pushing.
 - `check-upstream-versions` - Check for upstream version updates. Supports PyPI, GitHub,
   and npm registry. Use `--fresh` to clear cache. Cache expires after 6 hours.
@@ -28,24 +27,24 @@ need no sudo or interactive input.
 ### New ebuild
 
 1. Create `<cat>/<pkg>/` directory, write the ebuild and `metadata.xml`
-2. `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<ver>.ebuild`
+2. `scripts/larry prepare <cat>/<pkg>/<pkg>-<ver>.ebuild`
 3. `pkgcheck scan -r bennypowers <cat>/<pkg>`
 4. `scripts/test-emerge --pretend <cat>/<pkg>`
 5. `scripts/test-emerge <cat>/<pkg>`
 
 ### Version bump (upstream release)
 
-1. `scripts/bump-ebuild <cat>/<pkg> <new-version>`
+1. `scripts/larry bump <cat>/<pkg> <new-version>`
 2. Edit the new ebuild if SRC_URI, deps, or patches changed
-3. Re-run `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<new-version>.ebuild` if edited
+3. Re-run `scripts/larry prepare <cat>/<pkg>/<pkg>-<new-version>.ebuild` if edited
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
 5. `scripts/test-emerge <cat>/<pkg>-<new-version>`
 
 ### Revision bump (fix existing ebuild)
 
-1. `scripts/bump-ebuild --revision <cat>/<pkg>`
+1. `scripts/larry bump --revision <cat>/<pkg>`
 2. Edit the new revision with the fix
-3. Re-run `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<ver>-rN.ebuild` if edited
+3. Re-run `scripts/larry prepare <cat>/<pkg>/<pkg>-<ver>-rN.ebuild` if edited
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
 5. `scripts/test-emerge <cat>/<pkg>-<ver>-rN`
 
