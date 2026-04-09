@@ -1,0 +1,237 @@
+#!/usr/bin/env fish
+
+# prepare-ebuild: Download distfiles, generate dep caches, upload, and create Manifest.
+#
+# Usage:
+#   scripts/prepare-ebuild [--type npm] <ebuild-path> [...]
+#
+# Types:
+#   npm      Ebuilds using mirror://npm/ (auto-detected from SRC_URI)
+#   generic  Just download distfiles and generate Manifest (default fallback)
+#
+# If --type is omitted, the type is auto-detected from the ebuild content.
+#
+# Examples:
+#   scripts/prepare-ebuild dev-util/fish-lsp/fish-lsp-1.1.3.ebuild
+#   scripts/prepare-ebuild --type npm dev-util/vtsls/vtsls-0.3.0.ebuild
+
+set -g OVERLAY_DIR (realpath (dirname (status --current-filename))/..)
+set -g DISTDIR /tmp/distfiles
+set -g GH_REPO (git -C $OVERLAY_DIR remote get-url origin | string replace -r '.*github\.com[:/]' '' | string replace -r '\.git$' '')
+
+set -g COLOR_RESET \e\[0m
+set -g COLOR_GREEN \e\[32m
+set -g COLOR_RED \e\[31m
+set -g COLOR_YELLOW \e\[33m
+set -g COLOR_BOLD \e\[1m
+
+function msg
+    printf "$COLOR_BOLD$COLOR_GREEN>>>$COLOR_RESET %s\n" "$argv"
+end
+
+function warn
+    printf "$COLOR_BOLD$COLOR_YELLOW***$COLOR_RESET %s\n" "$argv" >&2
+end
+
+function err
+    printf "$COLOR_BOLD$COLOR_RED!!!$COLOR_RESET %s\n" "$argv" >&2
+end
+
+function print_usage
+    echo "Usage: scripts/prepare-ebuild [--type npm] <ebuild-path> [...]"
+    echo ""
+    echo "Download distfiles, generate dep caches, upload, and create Manifest."
+    echo ""
+    echo "Types:"
+    echo "  npm      Ebuilds using mirror://npm/ (auto-detected from SRC_URI)"
+    echo "  generic  Just generate Manifest from existing distfiles (default fallback)"
+    echo ""
+    echo "Examples:"
+    echo "  scripts/prepare-ebuild dev-util/fish-lsp/fish-lsp-1.1.3.ebuild"
+    echo "  scripts/prepare-ebuild --type npm dev-util/vtsls/vtsls-0.3.0.ebuild"
+end
+
+# Expand ${PN}, ${PV}, ${P}, and custom ebuild variables in a string.
+function expand_ebuild_vars -a text ebuild_path pn pv p
+    for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_path)
+        set -l key (string replace -r '=.*' '' $line)
+        # Extract value between quotes
+        set -l val (string match -r '"([^"]*)"' $line)[2]
+        set text (string replace -a "\${$key}" $val $text)
+    end
+
+    set text (string replace -a '${PN}' $pn $text)
+    set text (string replace -a '${PV}' $pv $text)
+    set text (string replace -a '${P}' $p $text)
+    echo $text
+end
+
+# Parse PN, PV, P from an ebuild file path.
+# Sets: _pn, _pv, _p
+function parse_ebuild -a ebuild_path
+    set -g _pn (basename (dirname $ebuild_path))
+    set -l ebuild_basename (basename $ebuild_path .ebuild)
+    set -g _pv (string replace "$_pn-" "" $ebuild_basename)
+    set -g _p "$_pn-$_pv"
+end
+
+function detect_type -a ebuild_path
+    if grep -q 'mirror://npm/' $ebuild_path
+        echo npm
+    else
+        echo generic
+    end
+end
+
+function prepare_npm -a ebuild_path
+    parse_ebuild $ebuild_path
+
+    # Extract and expand the mirror://npm/ line
+    set -l npm_line (grep 'mirror://npm/' $ebuild_path | string trim)
+    set -l expanded (expand_ebuild_vars "$npm_line" $ebuild_path $_pn $_pv $_p)
+
+    # Handle SRC_URI -> rename syntax
+    set -l distfile_name
+    if string match -q '* -> *' $expanded
+        set distfile_name (string split ' -> ' $expanded)[2]
+        set expanded (string split ' -> ' $expanded)[1]
+    else
+        set distfile_name (basename $expanded)
+    end
+
+    # Convert mirror://npm/ to registry URL
+    set -l npm_url (string replace 'mirror://npm/' 'https://registry.npmjs.org/' $expanded)
+    set -l npm_pkg (string replace -r '/-/.*' '' (string replace 'https://registry.npmjs.org/' '' $npm_url))
+
+    msg "Package:  $_p"
+    msg "npm:      $npm_pkg"
+    msg "Distfile: $distfile_name"
+
+    mkdir -p $DISTDIR
+
+    # Download source tarball from npm registry
+    msg "Downloading source tarball..."
+    curl -sfLo "$DISTDIR/$distfile_name" "$npm_url"
+    or begin
+        err "Failed to download $npm_url"
+        return 1
+    end
+    msg "Source: $DISTDIR/$distfile_name ("(du -h "$DISTDIR/$distfile_name" | cut -f1)")"
+
+    # Generate deps tarball
+    msg "Generating deps tarball..."
+    set -l work (mktemp -d)
+    cd "$work"
+
+    npm --cache ./npm-cache install "$DISTDIR/$distfile_name" 2>&1
+    or begin
+        err "npm install failed for $distfile_name"
+        rm -rf "$work"
+        return 1
+    end
+
+    tar -caf "$DISTDIR/$_p-deps.tar.xz" npm-cache
+    or begin
+        err "tar failed"
+        rm -rf "$work"
+        return 1
+    end
+    rm -rf "$work"
+    msg "Deps:   $DISTDIR/$_p-deps.tar.xz ("(du -h "$DISTDIR/$_p-deps.tar.xz" | cut -f1)")"
+
+    # Upload to GitHub release
+    msg "Uploading to GitHub release..."
+    if gh release view $_p --repo $GH_REPO >/dev/null 2>&1
+        gh release upload $_p "$DISTDIR/$_p-deps.tar.xz" --repo $GH_REPO --clobber 2>&1
+    else
+        gh release create $_p --repo $GH_REPO \
+            --title "$_p deps" \
+            --notes "npm dependency cache for $_p" \
+            "$DISTDIR/$_p-deps.tar.xz" 2>&1
+    end
+    or begin
+        err "GitHub release upload failed"
+        return 1
+    end
+
+    # Generate Manifest
+    generate_manifest $ebuild_path
+end
+
+function prepare_generic -a ebuild_path
+    parse_ebuild $ebuild_path
+    msg "Package: $_p (generic)"
+    generate_manifest $ebuild_path
+end
+
+function generate_manifest -a ebuild_path
+    msg "Generating Manifest..."
+    mkdir -p $DISTDIR
+    cd $OVERLAY_DIR
+    DISTDIR=$DISTDIR GENTOO_MIRRORS="" ebuild $ebuild_path digest 2>&1 | tail -2
+    or begin
+        err "ebuild digest failed"
+        return 1
+    end
+    msg "Done: $_p"
+    echo ""
+end
+
+# Main
+set -l forced_type ""
+set -l ebuilds
+
+for arg in $argv
+    switch $arg
+        case --help -h
+            print_usage
+            exit 0
+        case --type
+            set forced_type __next__
+        case '--type=*'
+            set forced_type (string replace '--type=' '' $arg)
+        case '*'
+            if test "$forced_type" = __next__
+                set forced_type $arg
+            else
+                set -a ebuilds $arg
+            end
+    end
+end
+
+if test (count $ebuilds) -eq 0
+    print_usage
+    exit 1
+end
+
+set -l failures 0
+
+for ebuild in $ebuilds
+    if not test -f $ebuild
+        err "Not a file: $ebuild"
+        set failures (math $failures + 1)
+        continue
+    end
+
+    set -l type $forced_type
+    if test -z "$type"
+        set type (detect_type $ebuild)
+    end
+
+    switch $type
+        case npm
+            prepare_npm $ebuild
+            or set failures (math $failures + 1)
+        case generic
+            prepare_generic $ebuild
+            or set failures (math $failures + 1)
+        case '*'
+            err "Unknown type: $type"
+            set failures (math $failures + 1)
+    end
+end
+
+if test $failures -gt 0
+    err "$failures package(s) failed"
+    exit 1
+end

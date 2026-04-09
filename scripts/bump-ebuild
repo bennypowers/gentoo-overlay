@@ -1,0 +1,213 @@
+#!/usr/bin/env fish
+
+# bump-ebuild: Copy an ebuild to a new version or revision.
+#
+# Usage:
+#   scripts/bump-ebuild <atom> <new-version>   Copy latest ebuild to new version
+#   scripts/bump-ebuild --revision <atom>      Create next revision of latest ebuild
+#
+# Examples:
+#   scripts/bump-ebuild dev-util/fish-lsp 1.2.0
+#   scripts/bump-ebuild --revision dev-util/fish-lsp
+
+set -g OVERLAY_DIR (realpath (dirname (status --current-filename))/..)
+
+set -g COLOR_RESET \e\[0m
+set -g COLOR_GREEN \e\[32m
+set -g COLOR_RED \e\[31m
+set -g COLOR_YELLOW \e\[33m
+set -g COLOR_BOLD \e\[1m
+
+function msg
+    printf "$COLOR_BOLD$COLOR_GREEN>>>$COLOR_RESET %s\n" "$argv"
+end
+
+function warn
+    printf "$COLOR_BOLD$COLOR_YELLOW***$COLOR_RESET %s\n" "$argv" >&2
+end
+
+function err
+    printf "$COLOR_BOLD$COLOR_RED!!!$COLOR_RESET %s\n" "$argv" >&2
+end
+
+function print_usage
+    echo "Usage:"
+    echo "  scripts/bump-ebuild <atom> <new-version>   Copy latest to new version"
+    echo "  scripts/bump-ebuild --revision <atom>      Create next revision of latest"
+    echo ""
+    echo "Examples:"
+    echo "  scripts/bump-ebuild dev-util/fish-lsp 1.2.0"
+    echo "  scripts/bump-ebuild --revision dev-util/fish-lsp"
+end
+
+# Parse a category/package atom, resolve the package directory.
+# Sets: _category, _pn, _pkg_dir
+function parse_atom -a atom
+    if not string match -qr '^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.+-]+$' $atom
+        err "Invalid atom: $atom (expected category/package)"
+        return 1
+    end
+
+    set -g _category (string split / $atom)[1]
+    set -l remainder (string split / $atom)[2]
+
+    set -l cat_dir "$OVERLAY_DIR/$_category"
+    if not test -d "$cat_dir"
+        err "Category not found: $_category"
+        return 1
+    end
+
+    # Try exact directory match first
+    if test -d "$cat_dir/$remainder"
+        set -g _pn $remainder
+        set -g _pkg_dir "$cat_dir/$remainder"
+        return 0
+    end
+
+    # Walk backwards through hyphens to find longest matching directory name
+    set -l parts (string split - $remainder)
+    for i in (seq (count $parts) -1 1)
+        set -l candidate (string join - $parts[1..$i])
+        if test -d "$cat_dir/$candidate"
+            set -g _pn $candidate
+            set -g _pkg_dir "$cat_dir/$candidate"
+            return 0
+        end
+    end
+
+    err "Package not found: $atom"
+    return 1
+end
+
+# Find the latest non-9999 ebuild. Sets: _latest_ebuild, _latest_pv
+function find_latest
+    set -l ebuilds (find $_pkg_dir -name "$_pn-*.ebuild" ! -name "*-9999.ebuild" 2>/dev/null | sort -V)
+    if test -z "$ebuilds"
+        err "No ebuilds found in $_pkg_dir"
+        return 1
+    end
+    set -g _latest_ebuild $ebuilds[-1]
+    set -l basename (basename $_latest_ebuild .ebuild)
+    set -g _latest_pv (string replace "$_pn-" "" $basename)
+end
+
+# Compute the next revision for a given PV.
+# e.g., "1.0" → "1.0-r1", "1.0-r1" → "1.0-r2"
+function next_revision -a pv
+    if string match -qr -- '-r([0-9]+)$' $pv
+        set -l rev (string match -r -- '-r([0-9]+)$' $pv)[2]
+        set -l next_rev (math $rev + 1)
+        string replace -r -- '-r[0-9]+$' "-r$next_rev" $pv
+    else
+        echo "$pv-r1"
+    end
+end
+
+function bump_version -a atom new_version
+    parse_atom $atom
+    or return 1
+    find_latest
+    or return 1
+
+    set -l new_ebuild "$_pkg_dir/$_pn-$new_version.ebuild"
+    if test -f "$new_ebuild"
+        err "Already exists: $new_ebuild"
+        return 1
+    end
+
+    cp "$_latest_ebuild" "$new_ebuild"
+    or begin
+        err "Failed to copy ebuild"
+        return 1
+    end
+
+    set -l rel_src (string replace "$OVERLAY_DIR/" "" $_latest_ebuild)
+    set -l rel_dst (string replace "$OVERLAY_DIR/" "" $new_ebuild)
+
+    msg "Copied: $rel_src"
+    msg "    to: $rel_dst"
+    echo ""
+    warn "Next steps:"
+    echo "  1. Edit $rel_dst if needed (SRC_URI, deps, patches)"
+    echo "  2. scripts/prepare-ebuild $rel_dst"
+    echo "  3. scripts/test-emerge $_category/$_pn-$new_version"
+end
+
+function bump_revision -a atom
+    parse_atom $atom
+    or return 1
+    find_latest
+    or return 1
+
+    set -l new_pv (next_revision $_latest_pv)
+    set -l new_ebuild "$_pkg_dir/$_pn-$new_pv.ebuild"
+
+    if test -f "$new_ebuild"
+        err "Already exists: $new_ebuild"
+        return 1
+    end
+
+    cp "$_latest_ebuild" "$new_ebuild"
+    or begin
+        err "Failed to copy ebuild"
+        return 1
+    end
+
+    set -l rel_src (string replace "$OVERLAY_DIR/" "" $_latest_ebuild)
+    set -l rel_dst (string replace "$OVERLAY_DIR/" "" $new_ebuild)
+
+    msg "Copied: $rel_src"
+    msg "    to: $rel_dst"
+    echo ""
+    warn "Next steps:"
+    echo "  1. Edit $rel_dst with your fix"
+    echo "  2. scripts/prepare-ebuild $rel_dst"
+    echo "  3. scripts/test-emerge $_category/$_pn-$new_pv"
+end
+
+# Main
+set -l mode version
+set -l atom ""
+set -l new_version ""
+
+for arg in $argv
+    switch $arg
+        case --help -h
+            print_usage
+            exit 0
+        case --revision -r
+            set mode revision
+        case '-*'
+            err "Unknown option: $arg"
+            print_usage
+            exit 1
+        case '*'
+            if test -z "$atom"
+                set atom $arg
+            else if test -z "$new_version"
+                set new_version $arg
+            else
+                err "Too many arguments"
+                print_usage
+                exit 1
+            end
+    end
+end
+
+if test -z "$atom"
+    err "No package atom specified"
+    print_usage
+    exit 1
+end
+
+switch $mode
+    case revision
+        bump_revision $atom
+    case version
+        if test -z "$new_version"
+            err "No new version specified (use --revision for revision bumps)"
+            print_usage
+            exit 1
+        end
+        bump_version $atom $new_version
+end

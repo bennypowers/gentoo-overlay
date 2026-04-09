@@ -10,21 +10,53 @@ Before creating or modifying ebuilds, read the README.md for the current best pr
 
 ## Key Scripts
 
-- `update-manifests.fish` - Update manifests for all ebuilds
-- `check-upstream-versions.fish` - Check for upstream version updates
-- `test-emerge.fish` - Test-build ebuilds locally without pushing
+Script files are located in `./scripts/`. All scripts are self-contained and
+need no sudo or interactive input.
+
+- `prepare-ebuild` - Download distfiles, generate dep caches, upload, and create Manifest.
+  Auto-detects type from ebuild content (npm if `mirror://npm/` in SRC_URI, generic otherwise).
+- `bump-ebuild` - Copy latest ebuild to a new version or next revision.
+- `test-emerge` - Test-build ebuilds locally without pushing.
+- `check-upstream-versions` - Check for upstream version updates.
+- `update-manifests` - Update manifests for all ebuilds.
+
+## Workflows
+
+### New ebuild
+
+1. Create `<cat>/<pkg>/` directory, write the ebuild and `metadata.xml`
+2. `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<ver>.ebuild`
+3. `pkgcheck scan -r bennypowers <cat>/<pkg>`
+4. `scripts/test-emerge --pretend <cat>/<pkg>`
+5. `scripts/test-emerge <cat>/<pkg>`
+
+### Version bump (upstream release)
+
+1. `scripts/bump-ebuild <cat>/<pkg> <new-version>`
+2. Edit the new ebuild if SRC_URI, deps, or patches changed
+3. `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<new-version>.ebuild`
+4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
+5. `scripts/test-emerge <cat>/<pkg>-<new-version>`
+
+### Revision bump (fix existing ebuild)
+
+1. `scripts/bump-ebuild --revision <cat>/<pkg>`
+2. Edit the new revision with the fix
+3. `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<ver>-rN.ebuild`
+4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
+5. `scripts/test-emerge <cat>/<pkg>-<ver>-rN`
 
 ## Validating Ebuilds
 
 Git hooks in `hooks/` run pkgcheck automatically on commit and push.
 To install them: `git config core.hooksPath hooks`
 
-Before creating or modifying ebuilds:
+## Pre-flight checks
 
-1. Run `pkgcheck scan -r bennypowers <cat/pkg>` to lint the ebuild
-2. Run `./test-emerge.fish --pretend <cat/pkg>` to verify atom resolution
-3. Run `./test-emerge.fish <cat/pkg>` to test fetch and unpack
-4. Run `./test-emerge.fish --compile <cat/pkg>` to test compilation
+Before creating or modifying ebuilds, check `::gentoo` and `::guru` first with
+`eix -e <pkg>`. If a suitable version exists in a main repo, drop ours instead
+of bumping.
 
 ## Git
-Prefer not to use worktrees for this git repository
+
+Prefer not to use worktrees for this git repository.
