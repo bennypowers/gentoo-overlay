@@ -1,16 +1,20 @@
 #!/usr/bin/env fish
 
-# bump-ebuild: Copy an ebuild to a new version or revision.
+# bump-ebuild: Copy an ebuild to a new version or revision, then prepare it.
 #
 # Usage:
 #   scripts/bump-ebuild <atom> <new-version>   Copy latest ebuild to new version
 #   scripts/bump-ebuild --revision <atom>      Create next revision of latest ebuild
+#
+# After copying, automatically runs prepare-ebuild to download distfiles,
+# generate dep caches, and create the Manifest.
 #
 # Examples:
 #   scripts/bump-ebuild dev-util/fish-lsp 1.2.0
 #   scripts/bump-ebuild --revision dev-util/fish-lsp
 
 set -g OVERLAY_DIR (realpath (dirname (status --current-filename))/..)
+set -g SCRIPTS_DIR (dirname (status --current-filename))
 
 set -g COLOR_RESET \e\[0m
 set -g COLOR_GREEN \e\[32m
@@ -92,7 +96,7 @@ function find_latest
 end
 
 # Compute the next revision for a given PV.
-# e.g., "1.0" → "1.0-r1", "1.0-r1" → "1.0-r2"
+# e.g., "1.0" -> "1.0-r1", "1.0-r1" -> "1.0-r2"
 function next_revision -a pv
     if string match -qr -- '-r([0-9]+)$' $pv
         set -l rev (string match -r -- '-r([0-9]+)$' $pv)[2]
@@ -126,11 +130,8 @@ function bump_version -a atom new_version
 
     msg "Copied: $rel_src"
     msg "    to: $rel_dst"
-    echo ""
-    warn "Next steps:"
-    echo "  1. Edit $rel_dst if needed (SRC_URI, deps, patches)"
-    echo "  2. scripts/prepare-ebuild $rel_dst"
-    echo "  3. scripts/test-emerge $_category/$_pn-$new_version"
+
+    $SCRIPTS_DIR/prepare-ebuild $rel_dst
 end
 
 function bump_revision -a atom
@@ -158,11 +159,8 @@ function bump_revision -a atom
 
     msg "Copied: $rel_src"
     msg "    to: $rel_dst"
-    echo ""
-    warn "Next steps:"
-    echo "  1. Edit $rel_dst with your fix"
-    echo "  2. scripts/prepare-ebuild $rel_dst"
-    echo "  3. scripts/test-emerge $_category/$_pn-$new_pv"
+
+    $SCRIPTS_DIR/prepare-ebuild $rel_dst
 end
 
 # Main

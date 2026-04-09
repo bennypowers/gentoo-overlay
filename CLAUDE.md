@@ -18,11 +18,10 @@ need no sudo or interactive input.
   - `npm`: downloads from npm registry, generates deps tarball, uploads to GitHub release
   - `cargo`: downloads Cargo.lock from GitHub tag, parses registry crates, updates CRATES variable
   - `generic`: just runs `ebuild digest`
-- `bump-ebuild` - Copy latest ebuild to a new version or next revision.
+- `bump-ebuild` - Copy latest ebuild to a new version or next revision, then prepare it.
 - `test-emerge` - Test-build ebuilds locally without pushing.
 - `check-upstream-versions` - Check for upstream version updates. Supports PyPI, GitHub,
   and npm registry. Use `--fresh` to clear cache. Cache expires after 6 hours.
-- `update-manifests` - Update manifests for all ebuilds.
 
 ## Workflows
 
@@ -38,7 +37,7 @@ need no sudo or interactive input.
 
 1. `scripts/bump-ebuild <cat>/<pkg> <new-version>`
 2. Edit the new ebuild if SRC_URI, deps, or patches changed
-3. `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<new-version>.ebuild`
+3. Re-run `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<new-version>.ebuild` if edited
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
 5. `scripts/test-emerge <cat>/<pkg>-<new-version>`
 
@@ -46,7 +45,7 @@ need no sudo or interactive input.
 
 1. `scripts/bump-ebuild --revision <cat>/<pkg>`
 2. Edit the new revision with the fix
-3. `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<ver>-rN.ebuild`
+3. Re-run `scripts/prepare-ebuild <cat>/<pkg>/<pkg>-<ver>-rN.ebuild` if edited
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
 5. `scripts/test-emerge <cat>/<pkg>-<ver>-rN`
 

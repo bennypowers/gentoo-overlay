@@ -3,7 +3,8 @@
 # prepare-ebuild: Download distfiles, generate dep caches, upload, and create Manifest.
 #
 # Usage:
-#   scripts/prepare-ebuild [--type npm] <ebuild-path> [...]
+#   scripts/prepare-ebuild [--type npm|cargo|generic] <ebuild-path> [...]
+#   scripts/prepare-ebuild --all
 #
 # Types:
 #   npm      Ebuilds using mirror://npm/ (auto-detected from SRC_URI)
@@ -261,12 +262,15 @@ end
 # Main
 set -l forced_type ""
 set -l ebuilds
+set -l all false
 
 for arg in $argv
     switch $arg
         case --help -h
             print_usage
             exit 0
+        case --all -a
+            set all true
         case --type
             set forced_type __next__
         case '--type=*'
@@ -278,6 +282,10 @@ for arg in $argv
                 set -a ebuilds $arg
             end
     end
+end
+
+if $all
+    set ebuilds (find $OVERLAY_DIR -name "*.ebuild" -type f | sort)
 end
 
 if test (count $ebuilds) -eq 0
