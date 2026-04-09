@@ -7,7 +7,7 @@
 # The overlay, distfiles, and binpkgs are mounted at runtime, not baked in.
 # This image just sets up portage config to match the host enough for testing.
 
-FROM gentoo/stage3:amd64-openrc
+FROM docker.io/gentoo/stage3:amd64-openrc
 
 # Accept ~amd64 for overlay packages and their deps
 RUN echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
