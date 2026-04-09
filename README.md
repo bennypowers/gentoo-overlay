@@ -16,15 +16,14 @@ git config core.hooksPath hooks   # QA checks on commit and push
 
 ## Larry
 
-Larry the CLI (`scripts/larry`) does the heavy lifting so Larry the Cow can
-keep chewing his cud.
+Everything goes through `scripts/larry`.
 
-| Command          | What it does |
-| ---------------- | ------------ |
-| `larry bump`     | Copy latest ebuild to a new version or `--revision`, then prepare it. One command to moo-ve upstream. |
-| `larry prepare`  | Download distfiles, generate dep caches, create Manifest. Auto-detects npm/cargo/generic. `--all` for the whole herd. |
-| `larry test`     | Test-build ebuilds locally. `--compile`, `--merge`, or `--pretend`. No bull. |
-| `larry check`    | Check all packages for upstream updates (PyPI, GitHub, npm). `--fresh` to waddle past the cache. |
+| Command            | What it does |
+| ------------------ | ------------ |
+| `larry bump`       | Copy latest ebuild to a new version or `--revision`, then prepare it. One command to moo-ve upstream. |
+| `larry prepare`    | Download distfiles, generate dep caches, create Manifest. Auto-detects npm/cargo/generic. `--all` for the whole herd. |
+| `larry test`       | Test-build ebuilds locally. `--compile`, `--merge`, or `--pretend`. No bull. |
+| `larry upstream`   | Check all packages for upstream updates (PyPI, GitHub, npm). `--fresh` to waddle past the cache. |
 
 ## Workflow
 
