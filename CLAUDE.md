@@ -14,10 +14,14 @@ Script files are located in `./scripts/`. All scripts are self-contained and
 need no sudo or interactive input.
 
 - `prepare-ebuild` - Download distfiles, generate dep caches, upload, and create Manifest.
-  Auto-detects type from ebuild content (npm if `mirror://npm/` in SRC_URI, generic otherwise).
+  Auto-detects type from ebuild content:
+  - `npm`: downloads from npm registry, generates deps tarball, uploads to GitHub release
+  - `cargo`: downloads Cargo.lock from GitHub tag, parses registry crates, updates CRATES variable
+  - `generic`: just runs `ebuild digest`
 - `bump-ebuild` - Copy latest ebuild to a new version or next revision.
 - `test-emerge` - Test-build ebuilds locally without pushing.
-- `check-upstream-versions` - Check for upstream version updates.
+- `check-upstream-versions` - Check for upstream version updates. Supports PyPI, GitHub,
+  and npm registry. Use `--fresh` to clear cache. Cache expires after 6 hours.
 - `update-manifests` - Update manifests for all ebuilds.
 
 ## Workflows

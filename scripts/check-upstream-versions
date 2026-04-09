@@ -3,7 +3,7 @@
 # Script to check for outdated packages in this Gentoo overlay
 # Compares current ebuild versions with latest upstream releases
 
-set -g OVERLAY_DIR (dirname (status --current-filename))
+set -g OVERLAY_DIR (realpath (dirname (status --current-filename))/..)
 set -g CACHE_DIR /tmp/overlay-version-check-cache
 set -g CHECKED_PACKAGES # Track checked packages to avoid cycles
 
@@ -15,7 +15,16 @@ set -g COLOR_RED \e\[31m
 set -g COLOR_BLUE \e\[34m
 set -g COLOR_GRAY \e\[90m
 
+set -g CACHE_MAX_AGE_HOURS 6
+
 function setup_cache
+    # Invalidate cache if older than CACHE_MAX_AGE_HOURS
+    if test -d $CACHE_DIR
+        set -l cache_age_min (math (math (date +%s) - (stat -c %Y $CACHE_DIR)) / 60)
+        if test $cache_age_min -gt (math $CACHE_MAX_AGE_HOURS \* 60)
+            rm -rf $CACHE_DIR
+        end
+    end
     mkdir -p $CACHE_DIR
 end
 
@@ -89,6 +98,65 @@ function is_pypi_package
     grep -q "inherit.*pypi" $ebuild_file
 end
 
+# Detect if ebuild fetches from npm registry
+function is_npm_package
+    set -l ebuild_file $argv[1]
+    grep -q 'mirror://npm/' $ebuild_file
+end
+
+# Extract the npm package name from SRC_URI mirror://npm/ line
+# Handles scoped packages (@scope/name) and ebuild variable expansion
+function get_npm_name
+    set -l ebuild_file $argv[1]
+    set -l package_name (basename (dirname $ebuild_file))
+    set -l pv (get_version_from_filename $ebuild_file)
+    set -l p "$package_name-$pv"
+
+    set -l npm_line (grep 'mirror://npm/' $ebuild_file | string trim)
+    if test -z "$npm_line"
+        echo $package_name
+        return
+    end
+
+    # Expand ebuild variables
+    for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_file)
+        set -l key (string replace -r '=.*' '' $line)
+        set -l val (string match -r '"([^"]*)"' $line)[2]
+        set npm_line (string replace -a "\${$key}" $val $npm_line)
+    end
+    set npm_line (string replace -a '${PN}' $package_name $npm_line)
+    set npm_line (string replace -a '${PV}' $pv $npm_line)
+    set npm_line (string replace -a '${P}' $p $npm_line)
+
+    # Convert to registry URL and extract package name
+    # mirror://npm/@scope/name/-/name-ver.tgz → @scope/name
+    # mirror://npm/name/-/name-ver.tgz → name
+    set -l npm_path (string replace 'mirror://npm/' '' $npm_line)
+    # Strip everything from /-/ onward and any -> rename suffix
+    set -l npm_pkg (string replace -r '/-/.*' '' $npm_path)
+    echo $npm_pkg
+end
+
+# Fetch latest version from npm registry
+function fetch_npm_version
+    set -l npm_name $argv[1]
+    set -l cache_file "$CACHE_DIR/npm-"(string replace -a / - $npm_name)
+
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
+
+    set -l ver (curl -s "https://registry.npmjs.org/$npm_name/latest" | jq -r '.version // empty' 2>/dev/null)
+
+    if test -n "$ver"
+        echo $ver | tee $cache_file
+        return 0
+    end
+
+    return 1
+end
+
 # Extract GitHub repo from various sources in ebuild
 function extract_github_repo
     set -l ebuild_file $argv[1]
@@ -118,6 +186,21 @@ function extract_github_repo
     return 1
 end
 
+# Expand bash parameter substitutions referencing PN
+# Handles: ${PN//-/_}, ${PN/-/_}, ${PN}, literal values
+function expand_pn -a value pn
+    switch $value
+        case '${PN//-/_}' '$PN//-/_'
+            string replace -a '-' '_' $pn
+        case '${PN/-/_}' '$PN/-/_'
+            string replace '-' '_' $pn
+        case '${PN}' '$PN'
+            echo $pn
+        case '*'
+            echo $value
+    end
+end
+
 # Extract the upstream PyPI package name from an ebuild
 # Checks for MY_PN, PYPI_PN overrides, or falls back to directory name
 function get_pypi_name
@@ -127,14 +210,14 @@ function get_pypi_name
     # Check for PYPI_PN override
     set -l pypi_pn (get_ebuild_var $ebuild_file PYPI_PN)
     if test -n "$pypi_pn"
-        echo $pypi_pn
+        echo (expand_pn $pypi_pn $package_name)
         return 0
     end
 
     # Check for MY_PN override (common pattern for renamed packages)
     set -l my_pn (get_ebuild_var $ebuild_file MY_PN)
     if test -n "$my_pn"
-        echo $my_pn
+        echo (expand_pn $my_pn $package_name)
         return 0
     end
 
@@ -418,6 +501,13 @@ function check_package
                 if test -n "$latest_ver"
                     set pkg_status "HAS-RELEASE"
                 end
+            else if is_npm_package $ebuild_file
+                set src "npm"
+                set -l npm_name (get_npm_name $ebuild_file)
+                set latest_ver (fetch_npm_version $npm_name)
+                if test -n "$latest_ver"
+                    set pkg_status "HAS-RELEASE"
+                end
             else if set -l repo (extract_github_repo $ebuild_file)
                 set src "GitHub"
                 set latest_ver (fetch_github_version $repo)
@@ -444,6 +534,11 @@ function check_package
         set -l pypi_name (get_pypi_name $ebuild_file)
         set src "PyPI:$pypi_name"
         set latest_ver (fetch_pypi_version $pypi_name)
+        and set fetch_result 0
+    else if is_npm_package $ebuild_file
+        set -l npm_name (get_npm_name $ebuild_file)
+        set src "npm:$npm_name"
+        set latest_ver (fetch_npm_version $npm_name)
         and set fetch_result 0
     else if set -l repo (extract_github_repo $ebuild_file)
         set src "GitHub:$repo"
@@ -507,6 +602,17 @@ end
 
 # Main execution
 function main
+    for arg in $argv
+        switch $arg
+            case --fresh -f
+                rm -rf $CACHE_DIR
+            case --help -h
+                echo "Usage: scripts/check-upstream-versions [--fresh]"
+                echo "  --fresh, -f   Clear cache and fetch all versions fresh"
+                return 0
+        end
+    end
+
     echo "Checking packages in overlay: $OVERLAY_DIR"
     echo ""
 
@@ -531,9 +637,9 @@ function main
     end
 
     echo ""
-    echo "Check complete. Cache stored in: $CACHE_DIR"
-    echo "Run 'rm -rf $CACHE_DIR' to clear cache and force refresh."
+    echo "Check complete. Cache stored in: $CACHE_DIR (expires after "$CACHE_MAX_AGE_HOURS"h)"
+    echo "Use --fresh to force a refresh."
 end
 
 # Run main
-main
+main $argv
