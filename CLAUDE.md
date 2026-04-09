@@ -21,8 +21,10 @@ need no sudo or interactive input.
     - `npm`: downloads from npm registry, generates deps tarball, uploads to GitHub release
     - `cargo`: downloads Cargo.lock from GitHub tag, parses registry crates, updates CRATES variable
     - `generic`: just runs `ebuild digest`
-  - `test` - Test-build ebuilds locally without pushing. Use `--emerge` for clean-room
-    container builds with GPU passthrough (requires `podman build -t larry-test .` first time).
+  - `test` - Test-build ebuilds locally without pushing. Accepts `--compile`, `--merge`,
+    or any ebuild phase like `--prepare`, `--configure`, `--install`. Multiple phases can
+    be combined: `larry test --fetch --unpack --prepare <atom>`.
+    Use `--emerge` for clean-room container builds with GPU passthrough.
   - `upstream` - Check for upstream version updates. Supports PyPI, GitHub,
     and npm registry. Use `--fresh` to clear cache. Cache expires after 6 hours.
 

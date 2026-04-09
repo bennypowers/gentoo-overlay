@@ -383,16 +383,18 @@ end
 set -g LARRY_IMAGE "larry-test"
 
 function do_test
-    set -l mode "unpack"
+    set -g _test_phases
     set -l pretend false
     set -l use_container false
     set -l atom ""
 
+    # Valid ebuild phases for treating --<word> as a phase
+    set -l valid_phases clean fetch unpack prepare configure compile install test package preinst postinst prerm postrm nofetch
+
     for arg in $argv
         switch $arg
-            case --compile -c; set mode "compile"
-            case --merge -m;   set mode "merge"
-            case --clean -C;   set mode "clean"
+            case --compile -c; set _test_phases clean fetch unpack compile
+            case --merge -m;   set _test_phases clean fetch unpack compile install
             case --pretend -p; set pretend true
             case --emerge -e;  set use_container true
             case --help -h
@@ -401,10 +403,18 @@ function do_test
                 echo "Options:"
                 echo "  --compile, -c    Run through compile phase (default: fetch+unpack)"
                 echo "  --merge, -m      Full build + install to image (NOT live system)"
-                echo "  --clean, -C      Clean build artifacts"
                 echo "  --pretend, -p    Show what would be run"
                 echo "  --emerge, -e     Real emerge in a clean container (GPU passthrough)"
+                echo "  --<phase>        Run a specific ebuild phase (e.g., --prepare, --clean)"
                 return 0
+            case '--*'
+                set -l phase (string replace -- '--' '' $arg)
+                if contains $phase $valid_phases
+                    set -a _test_phases $phase
+                else
+                    err "Unknown option or phase: $arg"
+                    return 1
+                end
             case '-*'; err "Unknown option: $arg"; return 1
             case '*'
                 if test -n "$atom"; err "Multiple atoms not supported"; return 1; end
@@ -414,36 +424,30 @@ function do_test
 
     if test -z "$atom"; err "No package atom specified"; return 1; end
 
+    if test (count $_test_phases) -eq 0
+        set _test_phases clean fetch unpack
+    end
+
     if $use_container
         do_test_container $atom $pretend
     else
-        do_test_local $atom $mode $pretend
+        do_test_local $atom $pretend
     end
 end
 
-function do_test_local -a atom mode pretend
+function do_test_local -a atom pretend
     parse_atom $atom; or return 1
     set -l ebuild (find_ebuild_for_atom); or return 1
     set -l ver (string replace "$_atom_pn-" "" (basename $ebuild .ebuild))
 
     msg "Package: $_atom_category/$_atom_pn-$ver"
     msg "Ebuild:  $ebuild"
-
-    set -l phases
-    set -l description
-    switch $mode
-        case unpack;  set phases clean fetch unpack;         set description "fetch and unpack"
-        case compile; set phases clean fetch unpack compile;  set description "compile"
-        case merge;   set phases clean fetch unpack compile install; set description "full build + install (to image only)"
-        case clean;   set phases clean;                       set description "clean"
-    end
-
-    msg "Mode:    $description ($phases)"
+    msg "Phases:  $_test_phases"
     echo ""
 
     if test "$pretend" = true
         warn "Pretend mode: would run:"
-        echo "  ebuild $ebuild $phases"
+        echo "  ebuild $ebuild $_test_phases"
         return 0
     end
 
@@ -455,15 +459,15 @@ function do_test_local -a atom mode pretend
     set -x PORTAGE_TMPDIR $tmpdir
     set -x DISTDIR $DISTDIR
     set -x GENTOO_MIRRORS ""
-    ebuild $ebuild $phases
+    ebuild $ebuild $_test_phases
 
     set -l status_code $status
     echo ""
 
     if test $status_code -eq 0
-        msg "Success: $_atom_category/$_atom_pn-$ver ($description)"
+        msg "Success: $_atom_category/$_atom_pn-$ver ($_test_phases)"
     else
-        err "Failed: $_atom_category/$_atom_pn-$ver ($description)"
+        err "Failed: $_atom_category/$_atom_pn-$ver ($_test_phases)"
         err "Exit code: $status_code"
     end
 
