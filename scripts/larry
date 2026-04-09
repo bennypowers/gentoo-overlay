@@ -19,7 +19,8 @@
 #   larry upstream --fresh
 
 set -g OVERLAY_DIR (realpath (dirname (status --current-filename))/..)
-set -g DISTDIR /tmp/distfiles
+set -g LARRY_CACHE (test -n "$XDG_CACHE_HOME" && echo "$XDG_CACHE_HOME/larry" || echo "$HOME/.cache/larry")
+set -g DISTDIR $LARRY_CACHE/distfiles
 set -g GH_REPO (git -C $OVERLAY_DIR remote get-url origin | string replace -r '.*github\.com[:/]' '' | string replace -r '\.git$' '')
 set -g CACHE_DIR /tmp/overlay-version-check-cache
 set -g CACHE_MAX_AGE_HOURS 6
@@ -50,6 +51,7 @@ function print_usage
     echo "  larry prepare <ebuild-path> [...]      Fetch distfiles, gen caches, manifest"
     echo "  larry prepare --all                    Prepare every ebuild in the overlay"
     echo "  larry test [options] <atom>            Test-build locally (default: fetch+unpack)"
+    echo "  larry test --emerge <atom>             Real emerge in a clean container (GPU passthrough)"
     echo "  larry upstream [--fresh]               Check for upstream version updates"
     echo ""
     echo "Examples:"
@@ -57,6 +59,7 @@ function print_usage
     echo "  larry bump --revision dev-util/fish-lsp"
     echo "  larry prepare dev-util/vtsls/vtsls-0.3.0.ebuild"
     echo "  larry test --compile dev-util/javy-8.1.1"
+    echo "  larry test --emerge dev-util/fish-lsp"
     echo "  larry upstream --fresh"
 end
 
@@ -375,9 +378,12 @@ end
 
 # ── test ───────────────────────────────────────────────────────────────────────
 
+set -g LARRY_IMAGE "larry-test"
+
 function do_test
     set -l mode "unpack"
     set -l pretend false
+    set -l use_container false
     set -l atom ""
 
     for arg in $argv
@@ -386,6 +392,7 @@ function do_test
             case --merge -m;   set mode "merge"
             case --clean -C;   set mode "clean"
             case --pretend -p; set pretend true
+            case --emerge -e;  set use_container true
             case --help -h
                 echo "Usage: larry test [options] <atom>"
                 echo ""
@@ -394,6 +401,7 @@ function do_test
                 echo "  --merge, -m      Full build + install to image (NOT live system)"
                 echo "  --clean, -C      Clean build artifacts"
                 echo "  --pretend, -p    Show what would be run"
+                echo "  --emerge, -e     Real emerge in a clean container (GPU passthrough)"
                 return 0
             case '-*'; err "Unknown option: $arg"; return 1
             case '*'
@@ -404,6 +412,14 @@ function do_test
 
     if test -z "$atom"; err "No package atom specified"; return 1; end
 
+    if $use_container
+        do_test_container $atom $pretend
+    else
+        do_test_local $atom $mode $pretend
+    end
+end
+
+function do_test_local -a atom mode pretend
     parse_atom $atom; or return 1
     set -l ebuild (find_ebuild_for_atom); or return 1
     set -l ver (string replace "$_atom_pn-" "" (basename $ebuild .ebuild))
@@ -423,7 +439,7 @@ function do_test
     msg "Mode:    $description ($phases)"
     echo ""
 
-    if $pretend
+    if test "$pretend" = true
         warn "Pretend mode: would run:"
         echo "  ebuild $ebuild $phases"
         return 0
@@ -447,6 +463,61 @@ function do_test
     else
         err "Failed: $_atom_category/$_atom_pn-$ver ($description)"
         err "Exit code: $status_code"
+    end
+
+    return $status_code
+end
+
+function ensure_test_image
+    if podman image exists $LARRY_IMAGE 2>/dev/null
+        return 0
+    end
+
+    msg "Building test container image (first time only)..."
+    podman build -t $LARRY_IMAGE $OVERLAY_DIR
+    or begin
+        err "Failed to build container image"
+        err "Run: podman build -t $LARRY_IMAGE $OVERLAY_DIR"
+        return 1
+    end
+end
+
+function do_test_container -a atom pretend
+    mkdir -p $LARRY_CACHE/distfiles $LARRY_CACHE/binpkgs
+
+    set -l emerge_args -1 --verbose --autounmask=y --autounmask-write=y
+    if test "$pretend" = true
+        set -a emerge_args --pretend
+    end
+
+    msg "Container emerge: $atom"
+
+    if test "$pretend" != true
+        ensure_test_image; or return 1
+    end
+
+    set -l podman_args \
+        --rm \
+        --device /dev/kfd \
+        --device /dev/dri \
+        --group-add video \
+        -v $OVERLAY_DIR:/var/db/repos/bennypowers:ro \
+        -v $LARRY_CACHE/distfiles:/var/cache/distfiles \
+        -v $LARRY_CACHE/binpkgs:/var/cache/binpkgs
+
+    if test "$pretend" = true
+        warn "Pretend mode: would run:"
+        echo "  podman run $podman_args $LARRY_IMAGE emerge $emerge_args $atom"
+        return 0
+    end
+
+    podman run $podman_args $LARRY_IMAGE emerge $emerge_args $atom
+    set -l status_code $status
+
+    if test $status_code -eq 0
+        msg "Container emerge succeeded: $atom"
+    else
+        err "Container emerge failed: $atom (exit $status_code)"
     end
 
     return $status_code
