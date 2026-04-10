@@ -5,22 +5,22 @@ EAPI=8
 
 inherit kernel-build
 
-# Match raspberrypi-sources version scheme: PV is e.g. 6.12.47_p20250916
-# The upstream tag is stable_YYYYMMDD
-MY_TAG="stable_$(ver_cut 5)"
-MY_P="linux-${MY_TAG}"
+# Match raspberrypi-sources version scheme: PV is e.g. 6.12.75_p20260408
+# Upstream stopped using stable_YYYYMMDD tags; pin to the same commit as
+# sys-kernel/raspberrypi-sources in ::gentoo.
+COMMIT="89050b1059997d38d55462b323b099a6436dc10d"
 
 DESCRIPTION="Raspberry Pi kernel built from Foundation sources"
 HOMEPAGE="https://github.com/raspberrypi/linux"
 SRC_URI="
-	https://github.com/raspberrypi/linux/archive/${MY_TAG}.tar.gz
+	https://github.com/raspberrypi/linux/archive/${COMMIT}.tar.gz
 		-> ${P}.tar.gz
 "
-S="${WORKDIR}/${MY_P}"
+S="${WORKDIR}/linux-${COMMIT}"
 
 LICENSE="GPL-2"
 KEYWORDS="-* ~arm64"
-IUSE="+strip"
+IUSE="debug +strip"
 
 RDEPEND="
 	!sys-kernel/raspberrypi-kernel-bin:${SLOT}
@@ -33,7 +33,10 @@ src_prepare() {
 	# Use the RPi5 defconfig (includes ARM64_16K_PAGES=y)
 	cp arch/arm64/configs/bcm2712_defconfig .config || die
 
-	local myversion="-raspberrypi"
+	# LOCALVERSION must start with the PV suffix so kernelrelease matches
+	# what the eclass expects: dist-kernel_PV_to_KV turns 6.12.75_p20260408
+	# into 6.12.75-p20260408, and the eclass checks kernelrelease starts with that.
+	local myversion="-p$(ver_cut 5)-raspberrypi"
 	echo "CONFIG_LOCALVERSION=\"${myversion}\"" > "${T}"/version.config || die
 
 	kernel-build_merge_configs "${T}"/version.config
