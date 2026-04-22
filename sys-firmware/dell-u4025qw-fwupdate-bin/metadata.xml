@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		Firmware updater for the Dell U4025QW ultrawide monitor. Updates
+		the monitor's internal firmware including the Thunderbolt controller,
+		USB hub, MCU, and display scaler.
+
+		The M3T105 firmware fixes Thunderbolt suspend/resume behavior
+		(auto-switching to DP/HDMI on sleep) and USB hub signal stability.
+
+		Requires a USB upstream cable connection to the monitor.
+	</longdescription>
+</pkgmetadata>
