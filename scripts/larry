@@ -103,6 +103,7 @@ function generate_manifest -a ebuild_path
     mkdir -p $DISTDIR
     cd $OVERLAY_DIR
     set -l cat_pkg (basename (dirname (dirname $ebuild_path)))/(basename (dirname $ebuild_path))
+    rm -f $OVERLAY_DIR/$cat_pkg/Manifest
     pkgdev manifest -d $DISTDIR $cat_pkg 2>&1
     or begin
         err "manifest generation failed"
