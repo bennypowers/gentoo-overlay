@@ -19,7 +19,8 @@ need no sudo or interactive input.
   - `prepare` - Download distfiles, generate dep caches, upload, and create Manifest.
     Auto-detects type from ebuild content:
     - `npm`: downloads from npm registry, generates deps tarball, uploads to GitHub release
-    - `cargo`: downloads Cargo.lock from GitHub tag, parses registry crates, updates CRATES variable
+    - `cargo`: downloads Cargo.lock from GitHub tag (tries root, then `bindings/python/`), parses registry crates, updates CRATES variable
+    - `go`: downloads source, runs `go mod vendor`, stores deps tarball in package dir
     - `generic`: just runs `ebuild digest`
   - `test` - Test-build ebuilds locally without pushing. Accepts `--compile`, `--merge`,
     or any ebuild phase like `--prepare`, `--configure`, `--install`. Multiple phases can

@@ -93,6 +93,8 @@ function detect_type -a ebuild_path
         echo npm
     else if grep -q '^CRATES="' $ebuild_path
         echo cargo
+    else if grep -q 'inherit.*go-module' $ebuild_path
+        echo go
     else
         echo generic
     end
@@ -191,8 +193,18 @@ function prepare_cargo -a ebuild_path
 
     set -l cargo_lock_file (mktemp)
     msg "Downloading Cargo.lock..."
-    curl -sfo "$cargo_lock_file" "https://raw.githubusercontent.com/$repo/$tag/Cargo.lock"
-    or begin; err "Failed to download Cargo.lock"; rm -f "$cargo_lock_file"; return 1; end
+    set -l _found false
+    for _subdir in '' 'bindings/python/'
+        if curl -sfo "$cargo_lock_file" "https://raw.githubusercontent.com/$repo/$tag/{$_subdir}Cargo.lock"
+            set _found true
+            break
+        end
+    end
+    if test "$_found" = false
+        err "Failed to download Cargo.lock"
+        rm -f "$cargo_lock_file"
+        return 1
+    end
 
     msg "Parsing crates and updating ebuild..."
     set -l crate_count (python3 -c "
@@ -235,6 +247,49 @@ print(len(crates))
     generate_manifest $ebuild_path
 end
 
+# ── prepare: go ─────────────────────────────────────────────────────────────────
+
+function prepare_go -a ebuild_path
+    parse_ebuild $ebuild_path
+
+    msg "Package: $_p (go)"
+
+    set -l gh_url (grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' $ebuild_path | head -1)
+    if test -z "$gh_url"
+        err "Could not find GitHub URL in ebuild"
+        return 1
+    end
+
+    set -l tag "v$_pv"
+    set tag (string replace -r -- '-r[0-9]+$' '' $tag)
+
+    msg "Tag:     $tag"
+
+    set -l work (mktemp -d)
+    msg "Downloading source..."
+    curl -sL "$gh_url/archive/refs/tags/$tag.tar.gz" | tar xz -C "$work"
+    or begin; err "Failed to download source"; rm -rf "$work"; return 1; end
+
+    set -l src_dir (find "$work" -maxdepth 1 -mindepth 1 -type d | head -1)
+    msg "Vendoring Go dependencies..."
+    cd "$src_dir"
+    go mod vendor 2>&1
+    or begin; err "go mod vendor failed"; rm -rf "$work"; cd $OVERLAY_DIR; return 1; end
+    cd $OVERLAY_DIR
+
+    set -l pkg_dir (dirname $ebuild_path)
+    set -l deps_file "$pkg_dir/$_p-deps.tar.gz"
+    tar -czf "$deps_file" -C "$src_dir" vendor
+    or begin; err "tar failed"; rm -rf "$work"; return 1; end
+    rm -rf "$work"
+    msg "Deps:    $deps_file ("(du -h "$deps_file" | cut -f1)")"
+
+    mkdir -p $DISTDIR
+    cp "$deps_file" "$DISTDIR/$_p-deps.tar.gz"
+
+    generate_manifest $ebuild_path
+end
+
 # ── prepare: generic ────────────────────────────────────────────────────────────
 
 function prepare_generic -a ebuild_path
@@ -259,6 +314,7 @@ function do_prepare_one -a ebuild_path forced_type
     switch $type
         case npm;     prepare_npm $ebuild_path
         case cargo;   prepare_cargo $ebuild_path
+        case go;      prepare_go $ebuild_path
         case generic; prepare_generic $ebuild_path
         case '*';     err "Unknown type: $type"; return 1
     end
