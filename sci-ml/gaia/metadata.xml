@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		AMD Gaia is an AI agent framework that provides tools for building
+		and deploying AI agents. It includes support for various AI models
+		and frameworks, with integration for AMD hardware acceleration.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">amd/gaia</remote-id>
+	</upstream>
+</pkgmetadata>
