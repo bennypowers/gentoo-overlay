@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		Lemonade Server is a high-performance inference server built on the
+		Lemonade SDK. It supports multiple backends including CUDA, OpenCL,
+		and Vulkan for efficient model deployment.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">lemonade-sdk/lemonade</remote-id>
+	</upstream>
+</pkgmetadata>
