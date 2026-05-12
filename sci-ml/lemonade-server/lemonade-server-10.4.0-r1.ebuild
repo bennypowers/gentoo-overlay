@@ -8,23 +8,22 @@ inherit cmake
 DESCRIPTION="Local LLM server orchestrating backend inference processes"
 HOMEPAGE="https://github.com/lemonade-sdk/lemonade"
 SRC_URI="https://github.com/lemonade-sdk/lemonade/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
+S="${WORKDIR}/lemonade-${PV}"
 
 LICENSE="Apache-2.0"
 SLOT="0"
-IUSE="+webapp"
 KEYWORDS="~amd64"
-
-S="${WORKDIR}/lemonade-${PV}"
+IUSE="+webapp"
 
 RDEPEND="
-	net-libs/libcurl
-	app-arch/zstd
-	net-libs/libwebsockets
+	>=net-misc/curl-8.5.0
+	>=app-arch/zstd-1.5.5
+	>=net-libs/libwebsockets-4.3.3
 "
 DEPEND="${RDEPEND}
-	dev-cpp/nlohmann_json
-	dev-cpp/cli11
-	dev-cpp/cpp-httplib
+	>=dev-cpp/nlohmann_json-3.11.3
+	>=dev-cpp/cli11-2.4.2
+	>=dev-cpp/cpp-httplib-0.26.0
 "
 BDEPEND="
 	webapp? (

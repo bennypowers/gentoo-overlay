@@ -10,6 +10,9 @@
 		Lemonade SDK. It supports multiple backends including CUDA, OpenCL,
 		and Vulkan for efficient model deployment.
 	</longdescription>
+	<use>
+		<flag name="webapp">Build the bundled web application frontend</flag>
+	</use>
 	<upstream>
 		<remote-id type="github">lemonade-sdk/lemonade</remote-id>
 	</upstream>
