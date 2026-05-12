@@ -10,6 +10,12 @@
 		and deploying AI agents. It includes support for various AI models
 		and frameworks, with integration for AMD hardware acceleration.
 	</longdescription>
+	<use>
+		<flag name="api">Install FastAPI-based REST API server dependencies</flag>
+		<flag name="mcp">Install Model Context Protocol server dependencies</flag>
+		<flag name="rag">Install retrieval-augmented generation dependencies</flag>
+		<flag name="ui">Install web UI dependencies including PyTorch</flag>
+	</use>
 	<upstream>
 		<remote-id type="github">amd/gaia</remote-id>
 	</upstream>
