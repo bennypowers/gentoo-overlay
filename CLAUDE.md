@@ -82,7 +82,7 @@ of bumping.
 Builds that run `npm install`/`npm ci` during compile fail because the
 Gentoo sandbox blocks network access. **Do not** disable the sandbox with
 `unset FEATURES` — that disables the entire sandbox (filesystem, mount,
-kernel, network), not just network.
+kernel, network), not just network. That's a terrible security regression.
 
 Instead, vendor npm deps into a tarball:
 
