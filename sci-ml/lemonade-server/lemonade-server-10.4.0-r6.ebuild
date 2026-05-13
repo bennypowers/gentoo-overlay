@@ -1,0 +1,58 @@
+# Copyright 2026 Gentoo Authors
+# Distributed under the terms of the GNU General Public License v2
+
+EAPI=8
+
+inherit cmake
+
+DESCRIPTION="Local LLM server orchestrating backend inference processes"
+HOMEPAGE="https://github.com/lemonade-sdk/lemonade"
+SRC_URI="https://github.com/lemonade-sdk/lemonade/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
+S="${WORKDIR}/lemonade-${PV}"
+
+LICENSE="Apache-2.0"
+SLOT="0"
+KEYWORDS="~amd64"
+IUSE="+webapp"
+
+RDEPEND="
+	>=net-misc/curl-8.5.0
+	>=app-arch/zstd-1.5.5
+	>=net-libs/libwebsockets-4.3.3
+"
+DEPEND="${RDEPEND}
+	>=dev-cpp/nlohmann_json-3.11.3
+	>=dev-cpp/cli11-2.4.2
+	>=dev-cpp/cpp-httplib-0.26.0
+"
+BDEPEND="
+	webapp? (
+		net-libs/nodejs
+	)
+"
+
+src_prepare() {
+	cmake_src_prepare
+	# npm 11.x audit triggers "Exit handler never called!" bug
+	# https://github.com/npm/cli/issues/7766
+	echo -e "audit=false\nfund=false" > src/web-app/.npmrc
+}
+
+src_compile() {
+	# npm ci needs network access to fetch dependencies
+	cmake_src_compile
+	unset FEATURES
+}
+
+src_configure() {
+	local mycmakeargs=(
+		-DBUILD_WEB_APP=$(usex webapp ON OFF)
+		-DBUILD_TAURI_APP=OFF
+		-DBUILD_APPIMAGE=OFF
+		-DFETCHCONTENT_FULLY_DISCONNECTED=ON
+		# cpp-httplib has no .pc file on Gentoo; upstream checks pkg-config
+		# but the header is installed, so force system detection
+		-DUSE_SYSTEM_HTTPLIB=ON
+	)
+	cmake_src_configure
+}
