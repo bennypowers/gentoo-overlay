@@ -6,12 +6,14 @@
 		<name>Benny Powers</name>
 	</maintainer>
 	<longdescription lang="en">
-		Lemonade Server is a high-performance inference server built on the
-		Lemonade SDK. It supports multiple backends including CUDA, OpenCL,
-		and Vulkan for efficient model deployment.
+		Lemonade is a local LLM inference platform built on the Lemonade SDK.
+		It provides a server daemon (lemond), a command-line client, and an
+		optional web interface. Supports multiple backends including CUDA,
+		OpenCL, and Vulkan for efficient model deployment.
 	</longdescription>
 	<use>
 		<flag name="webapp">Build the bundled web application frontend</flag>
+		<flag name="systemd">Link against libsystemd for journal log support and install the lemond.service unit file</flag>
 	</use>
 	<upstream>
 		<remote-id type="github">lemonade-sdk/lemonade</remote-id>
