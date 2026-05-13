@@ -3,7 +3,7 @@
 
 EAPI=8
 
-inherit cmake systemd user
+inherit cmake systemd
 
 DESCRIPTION="Local LLM inference platform with server, CLI, and web interface"
 HOMEPAGE="https://github.com/lemonade-sdk/lemonade"
@@ -25,7 +25,11 @@ RDEPEND="
 	>=net-misc/curl-8.5.0
 	>=app-arch/zstd-1.5.5
 	>=net-libs/libwebsockets-4.3.3
-	systemd? ( sys-apps/systemd:= )
+	systemd? (
+		acct-group/lemonade
+		acct-user/lemonade
+		sys-apps/systemd:=
+	)
 "
 DEPEND="${RDEPEND}
 	>=dev-cpp/nlohmann_json-3.11.3
@@ -74,9 +78,6 @@ src_install() {
 	cmake_src_install
 
 	if use systemd; then
-		do_user lemonade "" "Lemonade server" /dev/null
-		do_group lemonade
-
 		# Upstream installs to ${CMAKE_INSTALL_PREFIX}/lib/systemd/system/
 		# which is correct for prefix=/usr, but reinstall via eclass for
 		# consistent path handling
