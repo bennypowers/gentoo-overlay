@@ -3,7 +3,9 @@
 
 EAPI=8
 
-inherit cmake systemd
+RUST_OPTIONAL=1
+
+inherit cmake rust systemd
 
 DESCRIPTION="Local LLM inference platform with server, CLI, and web interface"
 HOMEPAGE="https://github.com/lemonade-sdk/lemonade"
@@ -45,13 +47,17 @@ BDEPEND="
 	>=dev-cpp/cli11-2.4.2
 	>=dev-cpp/cpp-httplib-0.26.0
 	gui? (
+		${RUST_DEPEND}
 		net-libs/nodejs
-		virtual/rust
 	)
 	webapp? (
 		net-libs/nodejs
 	)
 "
+
+pkg_setup() {
+	use gui && rust_pkg_setup
+}
 
 src_prepare() {
 	cmake_src_prepare
