@@ -77,6 +77,25 @@ Before creating or modifying ebuilds, check `::gentoo` and `::guru` first with
 `eix -e <pkg>`. If a suitable version exists in a main repo, drop ours instead
 of bumping.
 
+## npm Dependencies
+
+Builds that run `npm install`/`npm ci` during compile fail because the
+Gentoo sandbox blocks network access. **Do not** disable the sandbox with
+`unset FEATURES` — that disables the entire sandbox (filesystem, mount,
+kernel, network), not just network.
+
+Instead, vendor npm deps into a tarball:
+
+1. Install deps locally: `npm ci --ignore-scripts`
+2. Tar the result: `tar caf ${P}-npm-deps.tar.xz node_modules`
+3. Upload to GitHub release with the **package name** as tag (not version):
+   `gh release create ${PN} --repo $GH_REPO ${P}-npm-deps.tar.xz`
+4. Add to ebuild `SRC_URI`, extract in `src_prepare()`, patch CMake to
+   skip `npm ci`
+
+Using the package name as the release tag (not the version) means the tarball
+is reusable across revisions and the name matches the ebuild's package.
+
 ## Git
 
 Prefer not to use worktrees for this git repository.
