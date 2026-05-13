@@ -55,7 +55,18 @@ need no sudo or interactive input.
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
 5. `scripts/larry test <cat>/<pkg>-<ver>-rN`
 
-## Validating Ebuilds
+## Commit Messages
+use conventional commit style
+
+## Push Hook
+
+The remote push hook rejects modifying already-pushed ebuilds in-place.
+If you edit an ebuild that exists on origin, you **must** create a new revision instead:
+
+1. Copy the ebuild to a new revision: `<pkg>-<ver>-rN.ebuild`
+2. Apply the fix to the new revision
+3. Keep the old ebuild unchanged
+4. Commit only the new revision (not the old one)
 
 Git hooks in `hooks/` run pkgcheck automatically on commit and push.
 To install them: `git config core.hooksPath hooks`
