@@ -24,6 +24,6 @@ src_compile() {
 
 src_install() {
 	dobin witr
-	doman docs/witr.1
+	doman docs/cli/witr.1
 	dodoc README.md CONTRIBUTING.md
 }
