@@ -9,7 +9,7 @@ DESCRIPTION="A lightweight, easy-to-use, feature-rich email client (GTK4 port)"
 HOMEPAGE="https://gitlab.gnome.org/GNOME/geary"
 
 EGIT_REPO_URI="https://gitlab.gnome.org/onny/geary.git"
-EGIT_BRANCH="gtk4-port"
+EGIT_BRANCH="nielsdg/gtk4"
 
 LICENSE="LGPL-2.1+ CC-BY-3.0 CC-BY-SA-3.0"
 SLOT="0"
