@@ -71,6 +71,9 @@ BDEPEND="
 "
 
 src_prepare() {
+	# Fix Vala syntax: get_for_drag is a static method, not a constructor
+	sed -i 's/new Gtk.DragIcon.get_for_drag/(Gtk.DragIcon) Gtk.DragIcon.get_for_drag/' \
+		src/client/accounts/accounts-editor-list-pane.vala || die
 	vala_setup
 	gnome2_environment_reset
 	default
