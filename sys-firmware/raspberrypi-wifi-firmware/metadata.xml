@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription>
+		Broadcom/Cypress WiFi firmware for Raspberry Pi boards using
+		the BCM43455 (CYW43455) chip. Installs the firmware binary,
+		CLM regulatory blob, and per-board NVRAM configs with the
+		symlinks that the brcmfmac driver expects.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">RPi-Distro/firmware-nonfree</remote-id>
+	</upstream>
+</pkgmetadata>
