@@ -72,8 +72,11 @@ end
 # by iterating until no more substitutions occur.
 function expand_ebuild_vars -a text ebuild_path pn pv p
     set -l changed true
+    set -l iterations 0
     while $changed
         set changed false
+        set iterations (math $iterations + 1)
+        if test $iterations -gt 10; break; end
         for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_path)
             set -l key (string replace -r '=.*' '' $line)
             set -l val (string match -r '"([^"]*)"' $line)[2]
@@ -395,25 +398,35 @@ function prepare_rpi_kernel -a ebuild_path
     set -l fw_tag "1.$fw_date"
 
     # Look up kernel commit from firmware release
-    set -l commit (curl -sL \
+    set -l commit (curl -sfL \
         "https://raw.githubusercontent.com/raspberrypi/firmware/$fw_tag/extra/git_hash" \
         2>/dev/null | string trim)
     if test -z "$commit"
         err "Cannot fetch kernel commit for firmware $fw_tag"
         return 1
     end
+    if not string match -qr '^[0-9a-f]{40}$' "$commit"
+        err "Invalid commit hash from firmware $fw_tag: $commit"
+        return 1
+    end
     msg "Firmware $fw_tag -> commit $commit"
 
-    # Update COMMIT= line in ebuild
-    if grep -q '^COMMIT=' $ebuild_path
-        sed -i "s|^COMMIT=.*|COMMIT=\"$commit\"|" $ebuild_path
-        msg "Updated COMMIT in ebuild"
-    else
+    # Update COMMIT= line in ebuild (rollback on manifest failure)
+    if not grep -q '^COMMIT=' $ebuild_path
         err "No COMMIT= line found in ebuild"
         return 1
     end
+    set -l old_commit (grep '^COMMIT=' $ebuild_path)
+    sed -i "s|^COMMIT=.*|COMMIT=\"$commit\"|" $ebuild_path
+    msg "Updated COMMIT in ebuild"
 
     generate_manifest $ebuild_path
+    or begin
+        # Restore original COMMIT on manifest failure
+        sed -i "s|^COMMIT=.*|$old_commit|" $ebuild_path
+        err "Manifest failed; restored original COMMIT"
+        return 1
+    end
 end
 
 function prepare_generic -a ebuild_path
@@ -881,14 +894,14 @@ function fetch_rpi_firmware_version
     set -l fw_date (string replace '1.' '' $fw_tag)
 
     # Kernel commit from firmware release
-    set -l commit (curl -sL \
+    set -l commit (curl -sfL \
         "https://raw.githubusercontent.com/raspberrypi/firmware/$fw_tag/extra/git_hash" \
         2>/dev/null | string trim)
     if test -z "$commit"; return 1; end
 
     # Kernel version from that commit's Makefile
-    set -l kver (curl -sL \
-        "https://raw.githubusercontent.com/raspberrypi/linux/$commit/Makefile" \
+    set -l kver (curl -sfL \
+        "https://raw.githubusercontent.com/raspberrypi/linux/$commit/Makefile" 2>/dev/null \
         | awk '/^VERSION/{v=$3} /^PATCHLEVEL/{p=$3} /^SUBLEVEL/{s=$3; print v"."p"."s; exit}')
     if test -z "$kver"; return 1; end
 
