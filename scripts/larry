@@ -68,15 +68,33 @@ end
 # ── Shared helpers ──────────────────────────────────────────────────────────────
 
 # Expand ${PN}, ${PV}, ${P}, and custom ebuild variables in a string.
+# Handles nested variable references (e.g., MY_WEBUI_P="${MY_WEBUI_NPM_NAME}-0.75.3")
+# by iterating until no more substitutions occur.
 function expand_ebuild_vars -a text ebuild_path pn pv p
-    for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_path)
-        set -l key (string replace -r '=.*' '' $line)
-        set -l val (string match -r '"([^"]*)"' $line)[2]
-        set text (string replace -a "\${$key}" $val $text)
+    set -l changed true
+    while $changed
+        set changed false
+        for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_path)
+            set -l key (string replace -r '=.*' '' $line)
+            set -l val (string match -r '"([^"]*)"' $line)[2]
+            if string match -q "*\${$key}*" $text
+                set text (string replace -a "\${$key}" $val $text)
+                set changed true
+            end
+        end
+        if string match -q '*${PN}*' $text
+            set text (string replace -a '${PN}' $pn $text)
+            set changed true
+        end
+        if string match -q '*${PV}*' $text
+            set text (string replace -a '${PV}' $pv $text)
+            set changed true
+        end
+        if string match -q '*${P}*' $text
+            set text (string replace -a '${P}' $p $text)
+            set changed true
+        end
     end
-    set text (string replace -a '${PN}' $pn $text)
-    set text (string replace -a '${PV}' $pv $text)
-    set text (string replace -a '${P}' $p $text)
     echo $text
 end
 
@@ -95,8 +113,49 @@ function detect_type -a ebuild_path
         echo cargo
     else if grep -q 'inherit.*go-module' $ebuild_path
         echo go
+    else if is_rpi_kernel_package $ebuild_path
+        echo rpi-kernel
     else
         echo generic
+    end
+end
+
+# Download all npm distfiles for every ebuild in a package so pkgdev manifest can find them.
+# pkgdev cannot resolve mirror://npm/ (it's a fake mirror prefix), so we pre-populate DISTDIR.
+function npm_fetch_all_distfiles -a cat_pkg
+    set -l pkg_dir "$OVERLAY_DIR/$cat_pkg"
+    if not test -d $pkg_dir; return; end
+
+    for ebuild in (find $pkg_dir -name '*.ebuild' | sort)
+        if not grep -q 'mirror://npm/' $ebuild; continue; end
+
+        set -l pn (basename (dirname $ebuild))
+        set -l ebuild_bn (basename $ebuild .ebuild)
+        set -l pv (string replace "$pn-" "" $ebuild_bn)
+        set -l p "$pn-$pv"
+
+        set -l npm_lines (grep 'mirror://npm/' $ebuild | sed -E 's/^\s*[A-Za-z0-9_+-]+\? ?\( //;s/\) //;s/^[[:space:]]+//;s/[[:space:]]+$//')
+        for line in $npm_lines
+            set -l expanded (expand_ebuild_vars "$line" $ebuild $pn $pv $p)
+
+            set -l df_name
+            set -l url_part
+            if string match -q '* -> *' $expanded
+                set df_name (string split ' -> ' $expanded)[2]
+                set url_part (string split ' -> ' $expanded)[1]
+            else
+                set df_name (basename $expanded)
+                set url_part $expanded
+            end
+
+            set -l url (string replace 'mirror://npm/' 'https://registry.npmjs.org/' $url_part)
+
+            if not test -f "$DISTDIR/$df_name"
+                msg "  npm: $df_name"
+                curl -sfLo "$DISTDIR/$df_name" "$url"
+                or begin; err "  Failed: $url"; return 1; end
+            end
+        end
     end
 end
 
@@ -105,6 +164,11 @@ function generate_manifest -a ebuild_path
     mkdir -p $DISTDIR
     cd $OVERLAY_DIR
     set -l cat_pkg (basename (dirname (dirname $ebuild_path)))/(basename (dirname $ebuild_path))
+
+    # Pre-fetch any missing npm distfiles for all ebuilds in this package
+    # (pkgdev cannot resolve mirror://npm/ on its own)
+    npm_fetch_all_distfiles $cat_pkg
+
     rm -f $OVERLAY_DIR/$cat_pkg/Manifest
     pkgdev manifest -d $DISTDIR $cat_pkg 2>&1
     or begin
@@ -120,18 +184,27 @@ end
 function prepare_npm -a ebuild_path
     parse_ebuild $ebuild_path
 
-    set -l npm_line (grep 'mirror://npm/' $ebuild_path | string trim)
-    set -l expanded (expand_ebuild_vars "$npm_line" $ebuild_path $_pn $_pv $_p)
-
-    set -l distfile_name
-    if string match -q '* -> *' $expanded
-        set distfile_name (string split ' -> ' $expanded)[2]
-        set expanded (string split ' -> ' $expanded)[1]
-    else
-        set distfile_name (basename $expanded)
+    # Handle all mirror://npm/ lines separately (ebuilds may have optional deps like
+    # webui? that also match grep; each line must be expanded independently)
+    # Strip SRC_URI condition prefixes like "webui? (" and trailing ")" before processing
+    set -l npm_lines (grep 'mirror://npm/' $ebuild_path | sed -E 's/^\s*[A-Za-z0-9_+-]+\? ?\( //;s/\) //;s/^[[:space:]]+//;s/[[:space:]]+$//')
+    if test -z "$npm_lines"
+        err "No mirror://npm/ line found in $ebuild_path"
+        return 1
     end
 
-    set -l npm_url (string replace 'mirror://npm/' 'https://registry.npmjs.org/' $expanded)
+    set -l main_npm_line $npm_lines[1]
+    set -l main_expanded (expand_ebuild_vars "$main_npm_line" $ebuild_path $_pn $_pv $_p)
+
+    set -l distfile_name
+    if string match -q '* -> *' $main_expanded
+        set distfile_name (string split ' -> ' $main_expanded)[2]
+        set main_expanded (string split ' -> ' $main_expanded)[1]
+    else
+        set distfile_name (basename $main_expanded)
+    end
+
+    set -l npm_url (string replace 'mirror://npm/' 'https://registry.npmjs.org/' $main_expanded)
     set -l npm_pkg (string replace -r '/-/.*' '' (string replace 'https://registry.npmjs.org/' '' $npm_url))
 
     msg "Package:  $_p"
@@ -140,10 +213,27 @@ function prepare_npm -a ebuild_path
 
     mkdir -p $DISTDIR
 
-    msg "Downloading source tarball..."
-    curl -sfLo "$DISTDIR/$distfile_name" "$npm_url"
-    or begin; err "Failed to download $npm_url"; return 1; end
-    msg "Source: $DISTDIR/$distfile_name ("(du -h "$DISTDIR/$distfile_name" | cut -f1)")"
+    # Download ALL npm tarballs (main + any optional ones) so pkgdev manifest finds them
+    for line in $npm_lines
+        set -l expanded (expand_ebuild_vars "$line" $ebuild_path $_pn $_pv $_p)
+
+        set -l df_name
+        if string match -q '* -> *' $expanded
+            set df_name (string split ' -> ' $expanded)[2]
+            set expanded (string split ' -> ' $expanded)[1]
+        else
+            set df_name (basename $expanded)
+        end
+
+        set -l url (string replace 'mirror://npm/' 'https://registry.npmjs.org/' $expanded)
+
+        if not test -f "$DISTDIR/$df_name"
+            msg "Downloading $df_name..."
+            curl -sfLo "$DISTDIR/$df_name" "$url"
+            or begin; err "Failed to download $url"; return 1; end
+            msg "  -> $df_name ("(du -h "$DISTDIR/$df_name" | cut -f1)")"
+        end
+    end
 
     msg "Generating deps tarball..."
     set -l work (mktemp -d)
@@ -292,6 +382,40 @@ end
 
 # ── prepare: generic ────────────────────────────────────────────────────────────
 
+function prepare_rpi_kernel -a ebuild_path
+    parse_ebuild $ebuild_path
+    msg "Package: $_p (rpi-kernel)"
+
+    # Extract firmware date from PV (e.g. 6.18.32_p20260521 -> 20260521)
+    set -l fw_date (string match -r '_p(\d{8})' $_pv)[2]
+    if test -z "$fw_date"
+        err "Cannot extract firmware date from version: $_pv"
+        return 1
+    end
+    set -l fw_tag "1.$fw_date"
+
+    # Look up kernel commit from firmware release
+    set -l commit (curl -sL \
+        "https://raw.githubusercontent.com/raspberrypi/firmware/$fw_tag/extra/git_hash" \
+        2>/dev/null | string trim)
+    if test -z "$commit"
+        err "Cannot fetch kernel commit for firmware $fw_tag"
+        return 1
+    end
+    msg "Firmware $fw_tag -> commit $commit"
+
+    # Update COMMIT= line in ebuild
+    if grep -q '^COMMIT=' $ebuild_path
+        sed -i "s|^COMMIT=.*|COMMIT=\"$commit\"|" $ebuild_path
+        msg "Updated COMMIT in ebuild"
+    else
+        err "No COMMIT= line found in ebuild"
+        return 1
+    end
+
+    generate_manifest $ebuild_path
+end
+
 function prepare_generic -a ebuild_path
     parse_ebuild $ebuild_path
     msg "Package: $_p (generic)"
@@ -312,11 +436,12 @@ function do_prepare_one -a ebuild_path forced_type
     end
 
     switch $type
-        case npm;     prepare_npm $ebuild_path
-        case cargo;   prepare_cargo $ebuild_path
-        case go;      prepare_go $ebuild_path
-        case generic; prepare_generic $ebuild_path
-        case '*';     err "Unknown type: $type"; return 1
+        case npm;        prepare_npm $ebuild_path
+        case cargo;      prepare_cargo $ebuild_path
+        case go;         prepare_go $ebuild_path
+        case rpi-kernel; prepare_rpi_kernel $ebuild_path
+        case generic;    prepare_generic $ebuild_path
+        case '*';        err "Unknown type: $type"; return 1
     end
 end
 
@@ -649,12 +774,19 @@ function is_npm_package
     grep -q 'mirror://npm/' $argv[1]
 end
 
+function is_rpi_kernel_package
+    grep -q "inherit.*kernel-build" $argv[1]
+    and grep -q 'raspberrypi/linux' $argv[1]
+end
+
 function get_npm_name
     set -l ebuild_file $argv[1]
     set -l package_name (basename (dirname $ebuild_file))
     set -l pv (get_version_from_filename $ebuild_file)
     set -l p "$package_name-$pv"
-    set -l npm_line (grep 'mirror://npm/' $ebuild_file | string trim)
+    # Only take the first mirror://npm/ line (ebuilds may have optional deps like webui?
+    # that also match grep, and multi-line processing breaks variable expansion)
+    set -l npm_line (grep 'mirror://npm/' $ebuild_file | head -1 | string trim)
     if test -z "$npm_line"; echo $package_name; return; end
     for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_file)
         set -l key (string replace -r '=.*' '' $line)
@@ -737,6 +869,34 @@ function extract_date_from_string
     return 1
 end
 
+function fetch_rpi_firmware_version
+    set -l cache_file "$CACHE_DIR/rpi-firmware"
+    if test -f $cache_file; cat $cache_file; return 0; end
+
+    # Latest firmware release tag (format: 1.YYYYMMDD)
+    set -l fw_tag (gh release list -R raspberrypi/firmware --limit 1 \
+        --json tagName -q '.[0].tagName' 2>/dev/null)
+    if test -z "$fw_tag" -o "$fw_tag" = "null"; return 1; end
+
+    set -l fw_date (string replace '1.' '' $fw_tag)
+
+    # Kernel commit from firmware release
+    set -l commit (curl -sL \
+        "https://raw.githubusercontent.com/raspberrypi/firmware/$fw_tag/extra/git_hash" \
+        2>/dev/null | string trim)
+    if test -z "$commit"; return 1; end
+
+    # Kernel version from that commit's Makefile
+    set -l kver (curl -sL \
+        "https://raw.githubusercontent.com/raspberrypi/linux/$commit/Makefile" \
+        | awk '/^VERSION/{v=$3} /^PATCHLEVEL/{p=$3} /^SUBLEVEL/{s=$3; print v"."p"."s; exit}')
+    if test -z "$kver"; return 1; end
+
+    set -l full_ver "$kver"_p"$fw_date"
+    echo $full_ver | tee $cache_file
+    return 0
+end
+
 function fetch_github_latest_tag_by_date
     set -l repo $argv[1]
     set -l cache_file "$CACHE_DIR/github-tags-"(string replace -a / - $repo)
@@ -809,9 +969,13 @@ function compare_versions
     set -l latest $argv[2]
     python3 -c "
 from packaging import version
+import re
+def normalize(v):
+    # Gentoo _p (patchlevel) -> PEP 440 .post for comparison
+    return re.sub(r'_p(\d+)', r'.post\1', v)
 try:
-    current = version.parse('$current')
-    latest = version.parse('$latest')
+    current = version.parse(normalize('$current'))
+    latest = version.parse(normalize('$latest'))
     if current < latest: print('outdated')
     elif current == latest: print('current')
     else: print('newer')
@@ -843,6 +1007,7 @@ function check_package
     set -g CHECKED_PACKAGES $CHECKED_PACKAGES $cat_pkg
 
     set -l ebuild_file (find_latest_versioned_ebuild $category $package)
+    set -l indent (string repeat -n (math $depth \* 2) " ")
 
     if test -z "$ebuild_file"
         if has_live_ebuild $category $package
@@ -850,23 +1015,27 @@ function check_package
             set -l current_ver "9999 (live)"
             set -l latest_ver "unknown"
             set -l src "unknown"
-            set -l pkg_status "LIVE"
-            if is_pypi_package $ebuild_file
+            set -l status_label "LIVE"
+            if is_rpi_kernel_package $ebuild_file
+                set src "RPi-FW"
+                set latest_ver (fetch_rpi_firmware_version)
+                if test -n "$latest_ver"; set status_label "HAS-RELEASE"; end
+            else if is_pypi_package $ebuild_file
                 set src "PyPI"
                 set -l pypi_name (get_pypi_name $ebuild_file)
                 set latest_ver (fetch_pypi_version $pypi_name)
-                if test -n "$latest_ver"; set pkg_status "HAS-RELEASE"; end
+                if test -n "$latest_ver"; set status_label "HAS-RELEASE"; end
             else if is_npm_package $ebuild_file
                 set src "npm"
                 set -l npm_name (get_npm_name $ebuild_file)
                 set latest_ver (fetch_npm_version $npm_name)
-                if test -n "$latest_ver"; set pkg_status "HAS-RELEASE"; end
+                if test -n "$latest_ver"; set status_label "HAS-RELEASE"; end
             else if set -l repo (extract_github_repo $ebuild_file)
                 set src "GitHub"
                 set latest_ver (fetch_github_version $repo)
-                if test -n "$latest_ver"; set pkg_status "HAS-RELEASE"; end
+                if test -n "$latest_ver"; set status_label "HAS-RELEASE"; end
             end
-            printf "%-35s %-15s %-15s %-15s %s\n" "$cat_pkg" "$current_ver" "$latest_ver" "$pkg_status" "$src"
+            printf '%s%s\t%s\t%s\t%s\t%s\n' "$indent" "$cat_pkg" "$current_ver" "$latest_ver" "$status_label" "$src"
         end
         return 0
     end
@@ -874,11 +1043,15 @@ function check_package
     set -l current_ver (get_version_from_filename $ebuild_file)
     set -l latest_ver "unknown"
     set -l src "unknown"
-    set -l pkg_status "UNKNOWN"
+    set -l status_label "UNKNOWN"
 
     set -g GITHUB_TAG_INFO ""
     set -l fetch_result 1
-    if is_pypi_package $ebuild_file
+    if is_rpi_kernel_package $ebuild_file
+        set src "RPi-FW:raspberrypi/firmware"
+        set latest_ver (fetch_rpi_firmware_version)
+        and set fetch_result 0
+    else if is_pypi_package $ebuild_file
         set -l pypi_name (get_pypi_name $ebuild_file)
         set src "PyPI:$pypi_name"
         set latest_ver (fetch_pypi_version $pypi_name)
@@ -897,10 +1070,9 @@ function check_package
     if test $fetch_result -eq 0 -a -n "$latest_ver" -a "$latest_ver" != "unknown"
         set -l comparison (compare_versions $current_ver $latest_ver)
         switch $comparison
-            case outdated; set pkg_status (printf "$COLOR_RED%s$COLOR_RESET" "OUTDATED")
-            case current;  set pkg_status (printf "$COLOR_GREEN%s$COLOR_RESET" "UP-TO-DATE")
-            case newer;    set pkg_status (printf "$COLOR_BLUE%s$COLOR_RESET" "AHEAD")
-            case unknown;  set pkg_status (printf "$COLOR_GRAY%s$COLOR_RESET" "UNKNOWN")
+            case outdated; set status_label "OUTDATED"
+            case current;  set status_label "UP-TO-DATE"
+            case newer;    set status_label "AHEAD"
         end
     else if test $fetch_result -eq 2 -a -n "$GITHUB_TAG_INFO"
         set -l tag_name (string split '|' $GITHUB_TAG_INFO)[1]
@@ -908,19 +1080,21 @@ function check_package
         set -l current_date (extract_date_from_string $current_ver)
         set latest_ver "$tag_name"
         if test -n "$current_date" -a -n "$tag_date"
-            if test "$tag_date" -gt "$current_date";    set pkg_status (printf "$COLOR_YELLOW%s$COLOR_RESET" "NEWER-TAG")
-            else if test "$tag_date" = "$current_date"; set pkg_status (printf "$COLOR_GREEN%s$COLOR_RESET" "UP-TO-DATE")
-            else;                                        set pkg_status (printf "$COLOR_BLUE%s$COLOR_RESET" "AHEAD"); end
+            if test "$tag_date" -gt "$current_date"
+                set status_label "NEWER-TAG"
+            else if test "$tag_date" = "$current_date"
+                set status_label "UP-TO-DATE"
+            else
+                set status_label "AHEAD"
+            end
         else
-            set pkg_status (printf "$COLOR_YELLOW%s$COLOR_RESET" "CHECK-TAG")
+            set status_label "CHECK-TAG"
         end
     else
-        set pkg_status (printf "$COLOR_GRAY%s$COLOR_RESET" "UNKNOWN")
         set latest_ver "?"
     end
 
-    set -l indent (string repeat -n (math $depth \* 2) " ")
-    printf "%s%-35s %-15s %-15s %-15s %s\n" "$indent" "$cat_pkg" "$current_ver" "$latest_ver" "$pkg_status" "$src"
+    printf '%s%s\t%s\t%s\t%s\t%s\n' "$indent" "$cat_pkg" "$current_ver" "$latest_ver" "$status_label" "$src"
 
     if test $depth -lt 3
         set -l deps (parse_upstream_dependencies $ebuild_file)
@@ -930,15 +1104,43 @@ function check_package
     end
 end
 
+function colorize_upstream
+    sed -E \
+        -e '1{p;s/./─/g;}' \
+        -e 's/OUTDATED/\x1b[31mOUTDATED\x1b[0m/' \
+        -e 's/UP-TO-DATE/\x1b[32mUP-TO-DATE\x1b[0m/' \
+        -e 's/AHEAD/\x1b[34mAHEAD\x1b[0m/' \
+        -e 's/NEWER-TAG/\x1b[33mNEWER-TAG\x1b[0m/' \
+        -e 's/CHECK-TAG/\x1b[33mCHECK-TAG\x1b[0m/' \
+        -e 's/HAS-RELEASE/\x1b[33mHAS-RELEASE\x1b[0m/' \
+        -e 's/LIVE/\x1b[90mLIVE\x1b[0m/' \
+        -e 's/UNKNOWN/\x1b[90mUNKNOWN\x1b[0m/' \
+        -e 's|GitHub:([^ ]+)|\x1b[34m\x1b]8;;https://github.com/\1\x07GitHub:\1\x1b]8;;\x07\x1b[0m|' \
+        -e 's|PyPI:([^ ]+)|\x1b[34m\x1b]8;;https://pypi.org/project/\1/\x07PyPI:\1\x1b]8;;\x07\x1b[0m|' \
+        -e 's|npm:([^ ]+)|\x1b[34m\x1b]8;;https://www.npmjs.com/package/\1\x07npm:\1\x1b]8;;\x07\x1b[0m|' \
+        -e 's|RPi-FW:([^ ]+)|\x1b[34m\x1b]8;;https://github.com/\1/releases\x07RPi-FW:\1\x1b]8;;\x07\x1b[0m|'
+end
+
 function do_upstream
+    set -l fresh false
+    set -l target_packages
+
     for arg in $argv
         switch $arg
-            case --fresh -f; rm -rf $CACHE_DIR
+            case --fresh -f
+                set fresh true
             case --help -h
-                echo "Usage: larry upstream [--fresh]"
+                echo "Usage: larry upstream [--fresh] [cat/pkg ...]"
                 echo "  --fresh, -f   Clear cache and fetch all versions fresh"
+                echo "  cat/pkg       Only check specified package(s) (e.g., x11-misc/sddm-silent-theme)"
                 return 0
+            case '*'
+                set -a target_packages $arg
         end
+    end
+
+    if $fresh
+        rm -rf $CACHE_DIR
     end
 
     echo "Checking packages in overlay: $OVERLAY_DIR"
@@ -946,18 +1148,23 @@ function do_upstream
 
     setup_upstream_cache
 
-    printf "%-35s %-15s %-15s %-15s %s\n" "Package" "Current" "Latest" "Status" "Source"
-    printf "%s\n" (string repeat -n 110 "─")
-
+    # Determine which packages to check
     set -l packages
-    for ebuild in (find_all_ebuilds)
-        set -l cat_pkg (get_package_info $ebuild)
-        if not contains $cat_pkg $packages; set packages $packages $cat_pkg; end
+    if test (count $target_packages) -gt 0
+        set packages $target_packages
+    else
+        for ebuild in (find_all_ebuilds)
+            set -l cat_pkg (get_package_info $ebuild)
+            if not contains $cat_pkg $packages; set packages $packages $cat_pkg; end
+        end
     end
 
-    for cat_pkg in $packages
-        check_package $cat_pkg 0
-    end
+    begin
+        printf 'Package\tCurrent\tLatest\tStatus\tSource\n'
+        for cat_pkg in $packages
+            check_package $cat_pkg 0
+        end
+    end | column -t -s \t | colorize_upstream
 
     echo ""
     echo "Check complete. Cache stored in: $CACHE_DIR (expires after "$CACHE_MAX_AGE_HOURS"h)"

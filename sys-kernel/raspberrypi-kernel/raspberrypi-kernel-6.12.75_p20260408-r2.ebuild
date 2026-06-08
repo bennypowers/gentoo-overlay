@@ -23,7 +23,6 @@ KEYWORDS="-* ~arm64"
 IUSE="-initramfs debug +strip"
 
 RDEPEND="
-	!sys-kernel/raspberrypi-kernel-bin:${SLOT}
 	sys-boot/raspberrypi-firmware
 	sys-firmware/raspberrypi-wifi-firmware
 "
