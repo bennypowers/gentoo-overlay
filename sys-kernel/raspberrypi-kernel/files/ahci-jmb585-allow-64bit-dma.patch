@@ -1,0 +1,19 @@
+Remove JMB582/585 from the 32-bit-only quirk list.
+
+The upstream quirk forces 32-bit DMA for these controllers due to broken
+64-bit DMA on some x86 platforms. On RPi5 (BCM2712), the IOMMU IOVA
+aperture is above 4GB, making 32-bit DMA impossible. 64-bit DMA through
+the BCM2712 IOMMU works correctly (verified on 6.12.75).
+
+--- a/drivers/ata/ahci.c
++++ b/drivers/ata/ahci.c
+@@ -449,10 +449,6 @@
+ 	{ PCI_VDEVICE(INTEL, 0x4b63), board_ahci_pcs_quirk }, /* Elkhart Lake AHCI */
+
+-	/* JMicron JMB582/585: force 32-bit DMA (broken 64-bit implementation) */
+-	{ PCI_VDEVICE(JMICRON, 0x0582), board_ahci_jmb585 },
+-	{ PCI_VDEVICE(JMICRON, 0x0585), board_ahci_jmb585 },
+-
+ 	/* JMicron 360/1/3/5/6, match class to avoid IDE function */
+ 	{ PCI_VENDOR_ID_JMICRON, PCI_ANY_ID, PCI_ANY_ID, PCI_ANY_ID,
+ 	  PCI_CLASS_STORAGE_SATA_AHCI, 0xffffff, board_ahci_ign_iferr },
