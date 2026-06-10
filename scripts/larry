@@ -251,12 +251,12 @@ function prepare_npm -a ebuild_path
     msg "Deps:   $DISTDIR/$_p-deps.tar.xz ("(du -h "$DISTDIR/$_p-deps.tar.xz" | cut -f1)")"
 
     msg "Uploading to GitHub release..."
-    if gh release view $_p --repo $GH_REPO >/dev/null 2>&1
-        gh release upload $_p "$DISTDIR/$_p-deps.tar.xz" --repo $GH_REPO --clobber 2>&1
+    if gh release view $_pn --repo $GH_REPO >/dev/null 2>&1
+        gh release upload $_pn "$DISTDIR/$_p-deps.tar.xz" --repo $GH_REPO --clobber 2>&1
     else
-        gh release create $_p --repo $GH_REPO \
-            --title "$_p deps" \
-            --notes "npm dependency cache for $_p" \
+        gh release create $_pn --repo $GH_REPO \
+            --title "$_pn deps" \
+            --notes "npm dependency cache for $_pn" \
             "$DISTDIR/$_p-deps.tar.xz" 2>&1
     end
     or begin; err "GitHub release upload failed"; return 1; end
