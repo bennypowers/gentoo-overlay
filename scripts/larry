@@ -271,27 +271,67 @@ function prepare_cargo -a ebuild_path
 
     msg "Package: $_p (cargo)"
 
-    set -l gh_url (grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' $ebuild_path | head -1)
-    if test -z "$gh_url"
-        err "Could not find GitHub URL in SRC_URI"
+    set -l forge ""
+    set -l repo ""
+    set -l tag ""
+
+    # Expand variables in ebuild content for URL matching
+    set -l ebuild_content (cat $ebuild_path | string replace -a '${PN}' $_pn | string replace -a '${PV}' $_pv | string replace -a '${P}' $_p)
+
+    set -l gh_url (echo $ebuild_content | grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' | head -1)
+    set -l srht_url (echo $ebuild_content | grep -oE 'https://git\.sr\.ht/~[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' | head -1)
+    # Also check HOMEPAGE for sr.ht project pages (sr.ht vs git.sr.ht)
+    if test -z "$srht_url"
+        set -l srht_project (echo $ebuild_content | grep -oE 'https://sr\.ht/~[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' | head -1)
+        if test -n "$srht_project"
+            set srht_url (string replace 'https://sr.ht/' 'https://git.sr.ht/' $srht_project)
+        end
+    end
+
+    if test -n "$gh_url"
+        set forge github
+        set repo (echo $gh_url | string replace -r '.*github\.com/' '')
+        set tag "v$_pv"
+    else if test -n "$srht_url"
+        set forge sourcehut
+        set repo $srht_url
+        # Extract tag from archive URL pattern, expand ebuild variables
+        set -l archive_tag (grep -oP 'archive/\K[^.]+(?=\.tar)' $ebuild_path | head -1)
+        if test -n "$archive_tag"
+            set tag (expand_ebuild_vars "$archive_tag" $ebuild_path $_pn $_pv $_p)
+        end
+        if test -z "$tag"
+            set tag "$_pn-$_pv"
+        end
+    else
+        err "Could not find GitHub or SourceHut URL in ebuild"
         return 1
     end
-    set -l repo (echo $gh_url | string replace -r '.*github\.com/' '')
 
-    set -l tag "v$_pv"
     set tag (string replace -r -- '-r[0-9]+$' '' $tag)
 
+    msg "Forge:   $forge"
     msg "Repo:    $repo"
     msg "Tag:     $tag"
 
     set -l cargo_lock_file (mktemp)
     msg "Downloading Cargo.lock..."
     set -l _found false
-    for _subdir in '' 'bindings/python/'
-        if curl -sfo "$cargo_lock_file" "https://raw.githubusercontent.com/$repo/$tag/{$_subdir}Cargo.lock"
-            set _found true
-            break
-        end
+    switch $forge
+        case github
+            for _subdir in '' 'bindings/python/'
+                if curl -sfo "$cargo_lock_file" "https://raw.githubusercontent.com/$repo/$tag/$_subdir"Cargo.lock
+                    set _found true
+                    break
+                end
+            end
+        case sourcehut
+            for _subdir in '' 'bindings/python/'
+                if curl -sfo "$cargo_lock_file" "$repo/blob/$tag/$_subdir"Cargo.lock
+                    set _found true
+                    break
+                end
+            end
     end
     if test "$_found" = false
         err "Failed to download Cargo.lock"
