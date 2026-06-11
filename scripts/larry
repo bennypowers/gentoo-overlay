@@ -105,8 +105,10 @@ end
 function parse_ebuild -a ebuild_path
     set -g _pn (basename (dirname $ebuild_path))
     set -l ebuild_basename (basename $ebuild_path .ebuild)
-    set -g _pv (string replace "$_pn-" "" $ebuild_basename)
+    set -g _pvr (string replace "$_pn-" "" $ebuild_basename)
+    set -g _pv (string replace -r -- '-r[0-9]+$' '' $_pvr)
     set -g _p "$_pn-$_pv"
+    set -g _pr "$_pn-$_pvr"
 end
 
 function detect_type -a ebuild_path
@@ -134,7 +136,8 @@ function npm_fetch_all_distfiles -a cat_pkg
 
         set -l pn (basename (dirname $ebuild))
         set -l ebuild_bn (basename $ebuild .ebuild)
-        set -l pv (string replace "$pn-" "" $ebuild_bn)
+        set -l pvr (string replace "$pn-" "" $ebuild_bn)
+        set -l pv (string replace -r -- '-r[0-9]+$' '' $pvr)
         set -l p "$pn-$pv"
 
         set -l npm_lines (grep 'mirror://npm/' $ebuild | sed -E 's/^\s*[A-Za-z0-9_+-]+\? ?\( //;s/\) //;s/^[[:space:]]+//;s/[[:space:]]+$//')
@@ -236,6 +239,13 @@ function prepare_npm -a ebuild_path
             or begin; err "Failed to download $url"; return 1; end
             msg "  -> $df_name ("(du -h "$DISTDIR/$df_name" | cut -f1)")"
         end
+    end
+
+    # Verify ebuild deps URL uses package name (PN) as release tag, not P
+    if grep -q 'releases/download/\${P}/' $ebuild_path
+        err "SRC_URI uses \${P} as release tag but deps upload to \${PN} tag"
+        err "Change releases/download/\${P}/ to releases/download/\${PN}/"
+        return 1
     end
 
     msg "Generating deps tarball..."
