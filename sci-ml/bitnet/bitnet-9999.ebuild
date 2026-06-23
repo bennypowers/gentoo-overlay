@@ -63,6 +63,10 @@ src_configure() {
 	CXX="$(get_llvm_prefix)/bin/clang++"
 	tc-export CC CXX
 
+	# Upstream ggml.c has implicit pointer conversions (char* -> float*,
+	# float* -> ggml_fp16_t*) that Clang >= 16 treats as errors.
+	append-cflags -Wno-error=incompatible-pointer-types
+
 	local mycmakeargs=(
 		-DBITNET_X86_TL2=$(usex cpu_flags_x86_avx2 ON OFF)
 		-DBITNET_ARM_TL1=$(usex cpu_flags_arm_neon ON OFF)
