@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<upstream>
+		<remote-id type="github">thewh1teagle/kokoro-onnx</remote-id>
+	</upstream>
+	<longdescription lang="en">
+		kokoro-onnx provides local text-to-speech using the Kokoro-82M
+		neural TTS model via ONNX Runtime. Supports multiple languages
+		and voices with CPU inference by default. GPU acceleration is
+		available via the ONNX_PROVIDER environment variable when
+		onnxruntime is built with CUDA or MIGraphX support.
+	</longdescription>
+</pkgmetadata>

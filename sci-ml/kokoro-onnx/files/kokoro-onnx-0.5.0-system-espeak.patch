@@ -1,0 +1,25 @@
+Use system espeak-ng instead of the bundled espeakng-loader package.
+On Gentoo, espeak-ng is installed system-wide via app-accessibility/espeak-ng.
+
+--- a/src/kokoro_onnx/tokenizer.py
++++ b/src/kokoro_onnx/tokenizer.py
+@@ -4,7 +4,6 @@
+ import platform
+ import sys
+
+-import espeakng_loader
+ import phonemizer
+ from phonemizer.backend.espeak.wrapper import EspeakWrapper
+
+@@ -18,9 +17,9 @@
+         if not espeak_config:
+             espeak_config = EspeakConfig()
+         if not espeak_config.data_path:
+-            espeak_config.data_path = espeakng_loader.get_data_path()
++            espeak_config.data_path = "/usr/share/espeak-ng-data"
+         if not espeak_config.lib_path:
+-            espeak_config.lib_path = espeakng_loader.get_library_path()
++            espeak_config.lib_path = ctypes.util.find_library("espeak-ng")
+
+         # Check if PHONEMIZER_ESPEAK_LIBRARY was set
+         if os.getenv("PHONEMIZER_ESPEAK_LIBRARY"):
