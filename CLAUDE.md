@@ -96,6 +96,43 @@ Instead, vendor npm deps into a tarball:
 Using the package name as the release tag (not the version) means the tarball
 is reusable across revisions and the name matches the ebuild's package.
 
+## Unbundling Dependencies
+
+Gentoo policy requires using system libraries over bundled copies.
+See [Why not bundle dependencies](https://wiki.gentoo.org/wiki/Why_not_bundle_dependencies).
+
+When upstream Python packages bundle C/shared libraries (e.g. shipping a
+prebuilt `.so` in a wheel), patch them out and depend on system packages.
+
+Established patterns from ::gentoo:
+
+- `dev-python/blake3`: patch + `FORCE_SYSTEM_BLAKE3=1` + `rm -r` vendored source
+- `dev-python/grpcio`: `GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=1` etc.
+- `dev-python/argon2-cffi-bindings`: `ARGON2_CFFI_USE_SYSTEM=1`
+- CPython itself: `--with-system-expat`, removes bundled ensurepip
+
+General approach:
+
+1. Add system library to DEPEND/RDEPEND
+2. Set env var or patch build to force system usage
+3. Optionally `rm -r` vendored sources to guarantee they are not used
+
+## ML Model Files
+
+Do not package large (100MB+) ML model files as distfiles. Gentoo mirrors
+and distfile infrastructure are not designed for multi-gigabyte weights.
+
+Patterns by size (from ::gentoo precedent):
+
+| Size | Approach | Example |
+|------|----------|---------|
+| KB-MB per file | Separate data package + L10N USE | `tessdata_best`, `mbrola-voices` |
+| ~30MB, version-coupled | SRC_URI inline | `libpinyin` |
+| 100MB+ / user-selected | Runtime download only | `ollama`, `whisper-cpp`, `transformers` |
+
+For ML inference packages: install engine only, print download instructions
+in `pkg_postinst`. Use `sci-ml/huggingface_hub` when models are on HuggingFace.
+
 ## Git
 
 Prefer not to use worktrees for this git repository.
