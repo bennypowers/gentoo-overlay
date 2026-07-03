@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<upstream>
+		<remote-id type="github">GreycLab/gmic</remote-id>
+	</upstream>
+	<use>
+		<flag name="cli">Build command-line interface</flag>
+		<flag name="ffmpeg">Enable video support via <pkg>media-video/ffmpeg</pkg></flag>
+		<flag name="fftw">Enable FFTW support via <pkg>sci-libs/fftw</pkg></flag>
+		<flag name="gimp">Build GIMP plugin</flag>
+		<flag name="graphicsmagick">Enable GraphicsMagick support</flag>
+		<flag name="gui">Build standalone Qt GUI</flag>
+		<flag name="opencv">Enable OpenCV support via <pkg>media-libs/opencv</pkg></flag>
+		<flag name="openexr">Enable OpenEXR support</flag>
+	</use>
+</pkgmetadata>
