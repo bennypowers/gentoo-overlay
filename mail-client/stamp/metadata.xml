@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<upstream>
+		<maintainer>
+			<name>Jan-Michael Brummer</name>
+		</maintainer>
+		<remote-id type="gnome-gitlab">jbrummer/stamp</remote-id>
+		<bugs-to>https://gitlab.gnome.org/jbrummer/stamp/-/issues</bugs-to>
+	</upstream>
+	<longdescription>
+		Stamp is a GNOME mail client built with GTK4 and libadwaita. It uses
+		Evolution Data Server for mail account management and provides a modern
+		interface for reading, composing, and managing email with contact
+		integration and calendar support.
+	</longdescription>
+</pkgmetadata>
