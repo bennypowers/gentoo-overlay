@@ -41,16 +41,19 @@ src_compile() {
 }
 
 src_install() {
-	dobin c/glm
+	# Install engine + tools to libexec, matching upstream's installed layout
+	# (coli resolves ../libexec/colibri/ relative to its own bin/ location)
+	exeinto /usr/libexec/${PN}
+	doexe c/glm
 
 	if use python; then
 		python_fix_shebang c/coli
 		dobin c/coli
 
-		insinto /usr/share/${PN}/tools
+		insinto /usr/libexec/${PN}/tools
 		doins c/tools/*.py
 
-		insinto /usr/share/${PN}
+		insinto /usr/libexec/${PN}
 		doins c/openai_server.py
 	fi
 
@@ -58,8 +61,11 @@ src_install() {
 }
 
 pkg_postinst() {
-	elog "Pre-converted int4 weights available at:"
-	elog "  https://huggingface.co/jlnsrk/GLM-5.2-colibri-int4"
+	elog "Pre-converted int4 weights (with int8 MTP for speculative decoding):"
+	elog "  huggingface-cli download mateogrgic/GLM-5.2-colibri-int4-with-int8-mtp"
+	elog ""
+	elog "Then set COLI_MODEL to the HuggingFace snapshot directory, e.g.:"
+	elog "  export COLI_MODEL=~/.cache/huggingface/hub/models--mateogrgic--GLM-5.2-colibri-int4-with-int8-mtp/snapshots/<hash>"
 	elog ""
 	elog "Alternatively, convert from FP8: coli convert"
 	elog ""
