@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		Colibri runs GLM-5.2 (744B-parameter MoE) on consumer hardware with
+		as little as 25GB RAM. Pure C engine with zero runtime dependencies,
+		streaming experts from disk with an LRU cache. Supports MLA attention,
+		MTP speculative decoding, and optional CUDA GPU offloading.
+	</longdescription>
+	<use>
+		<flag name="python">Install the coli Python CLI for model management,
+			chat, serving, and weight conversion</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">JustVugg/colibri</remote-id>
+	</upstream>
+</pkgmetadata>
