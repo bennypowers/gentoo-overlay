@@ -9,7 +9,7 @@
 #   larry prepare --all                    Prepare every ebuild in the overlay
 #   larry import [--from <repo>] <cat/pkg>  Import ebuild from another overlay
 #   larry test [options] <atom>            Test-build an ebuild locally
-#   larry upstream [--fresh]               Check all packages for upstream version updates
+#   larry upstream [--fresh] [--verbose]    Check all packages for upstream version updates
 #
 # Examples:
 #   larry bump dev-util/fish-lsp 1.2.0
@@ -54,7 +54,7 @@ function print_usage
     echo "  larry import <cat/pkg>                 Import ebuild from another overlay (::guru, ::gentoo)"
     echo "  larry test [options] <atom>            Test-build locally (default: fetch+unpack)"
     echo "  larry test --emerge <atom>             Real emerge in a clean container (GPU passthrough)"
-    echo "  larry upstream [--fresh]               Check for upstream version updates"
+    echo "  larry upstream [--fresh] [--verbose]    Check for upstream version updates"
     echo ""
     echo "Examples:"
     echo "  larry bump dev-util/fish-lsp 1.2.0"
@@ -1186,16 +1186,20 @@ end
 
 function do_upstream
     set -l fresh false
+    set -l verbose false
     set -l target_packages
 
     for arg in $argv
         switch $arg
             case --fresh -f
                 set fresh true
+            case --verbose -v
+                set verbose true
             case --help -h
-                echo "Usage: larry upstream [--fresh] [cat/pkg ...]"
-                echo "  --fresh, -f   Clear cache and fetch all versions fresh"
-                echo "  cat/pkg       Only check specified package(s) (e.g., x11-misc/sddm-silent-theme)"
+                echo "Usage: larry upstream [--fresh] [--verbose] [cat/pkg ...]"
+                echo "  --fresh, -f     Clear cache and fetch all versions fresh"
+                echo "  --verbose, -v   Show UP-TO-DATE packages (hidden by default)"
+                echo "  cat/pkg         Only check specified package(s) (e.g., x11-misc/sddm-silent-theme)"
                 return 0
             case '*'
                 set -a target_packages $arg
@@ -1227,6 +1231,10 @@ function do_upstream
         for cat_pkg in $packages
             check_package $cat_pkg 0
         end
+    end | if not $verbose
+        grep -v 'UP-TO-DATE'
+    else
+        cat
     end | column -t -s \t | colorize_upstream
 
     echo ""
