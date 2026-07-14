@@ -12,6 +12,8 @@
 		MTP speculative decoding, and optional CUDA GPU offloading.
 	</longdescription>
 	<use>
+		<flag name="bench">Install dependencies for quality benchmarks
+			(MMLU, HellaSwag, ARC)</flag>
 		<flag name="python">Install the coli Python CLI for model management,
 			chat, serving, and weight conversion</flag>
 	</use>
