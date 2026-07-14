@@ -1,16 +1,16 @@
 # Copyright 2026 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
+DESCRIPTION="GNOME mail client"
 EAPI=8
 
 inherit git-r3 gnome2-utils meson xdg
 
-DESCRIPTION="GNOME mail client"
 HOMEPAGE="https://gitlab.gnome.org/jbrummer/stamp"
 EGIT_REPO_URI="https://gitlab.gnome.org/jbrummer/stamp.git"
 
-LICENSE="GPL-3+"
 SLOT="0"
+LICENSE="GPL-3+"
 
 DEPEND="
 	>=gui-libs/gtk-4:4
