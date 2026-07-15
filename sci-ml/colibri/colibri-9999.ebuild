@@ -13,6 +13,7 @@ EGIT_REPO_URI="https://github.com/JustVugg/colibri.git"
 
 LICENSE="Apache-2.0"
 SLOT="0"
+PATCHES=( "${FILESDIR}"/colibri-pread-retry.patch )
 IUSE="bench +python"
 REQUIRED_USE="
 	python? ( ${PYTHON_REQUIRED_USE} )
@@ -38,6 +39,15 @@ DEPEND="${RDEPEND}"
 
 pkg_setup() {
 	use python && python-single-r1_pkg_setup
+}
+
+src_prepare() {
+	default
+	# Replace bare pread with pread_full (added by patch) in expert_load
+	sed -i -e 's/if(pread(tw\[ord\[0\]\]->fd, s->slab, wtot, off0)!=wtot){ perror("pread expert")/if(pread_full(tw[ord[0]]->fd, s->slab, wtot, off0)!=wtot){ fprintf(stderr,"pread expert: short read\\n")/' \
+		-e 's/if(pread(tw\[k\]->fd, s->slab+o, tw\[k\]->nbytes, tw\[k\]->off)!=tw\[k\]->nbytes){ perror("pread expert")/if(pread_full(tw[k]->fd, s->slab+o, tw[k]->nbytes, tw[k]->off)!=tw[k]->nbytes){ fprintf(stderr,"pread expert: short read\\n")/' \
+		-e 's/if(pread(tq\[k\]->fd, (char\*)(s->fslab+fo), tq\[k\]->nbytes, tq\[k\]->off)!=tq\[k\]->nbytes){ perror("pread qs")/if(pread_full(tq[k]->fd, (char*)(s->fslab+fo), tq[k]->nbytes, tq[k]->off)!=tq[k]->nbytes){ fprintf(stderr,"pread qs: short read\\n")/' \
+		c/glm.c || die
 }
 
 src_compile() {
