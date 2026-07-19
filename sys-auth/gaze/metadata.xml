@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription>
+		Gaze provides facial authentication for Linux using on-device face
+		recognition. It includes a system daemon (gazed), a CLI client, PAM
+		modules for login/unlock integration, an optional GTK4/Adwaita GUI
+		for enrollment and configuration, and a GNOME Shell extension for
+		GDM lock-screen unlock.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">GunduLabs/Gaze</remote-id>
+		<bugs-to>https://github.com/GunduLabs/Gaze/issues</bugs-to>
+		<doc>https://gaze.gundulabs.com</doc>
+	</upstream>
+	<use>
+		<flag name="gnome">Install GNOME Shell extension for GDM face authentication</flag>
+		<flag name="gui">Build GTK4/Adwaita GUI for enrollment and configuration</flag>
+	</use>
+</pkgmetadata>
