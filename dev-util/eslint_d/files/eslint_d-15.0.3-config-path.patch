@@ -1,0 +1,24 @@
+Use XDG_RUNTIME_DIR for config file instead of writing next to eslint's
+package.json, which is root-owned in system-wide installs.
+
+--- a/lib/config.js
++++ b/lib/config.js
+@@ -1,5 +1,7 @@
+ import debug from 'debug';
+ import fs from 'node:fs/promises';
++import { mkdirSync } from 'node:fs';
++import { join } from 'node:path';
+
+ const log = debug('eslint_d:config');
+
+@@ -63,5 +65,9 @@ export async function removeConfig(resolver) {
+  * @returns {string}
+  */
+ export function configFile(resolver) {
+-  return `${resolver.base}/.eslint_d`;
++  const dir = process.env.XDG_RUNTIME_DIR
++    ? join(process.env.XDG_RUNTIME_DIR, 'eslint_d')
++    : join(process.env.HOME || '/tmp', '.cache', 'eslint_d');
++  mkdirSync(dir, { recursive: true });
++  return join(dir, `.eslint_d_${Buffer.from(resolver.base).toString('base64url')}`);
+ }
