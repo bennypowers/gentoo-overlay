@@ -77,6 +77,10 @@ Before creating or modifying ebuilds, check `::gentoo` and `::guru` first with
 `eix -e <pkg>`. If a suitable version exists in a main repo, drop ours instead
 of bumping.
 
+## Rust
+
+pycargoebuild is available - use it to vendor crates.
+
 ## npm Dependencies
 
 Builds that run `npm install`/`npm ci` during compile fail because the
