@@ -5,7 +5,7 @@ EAPI=8
 
 CRATES=""
 
-inherit cargo xdg
+inherit cargo desktop xdg
 
 DESCRIPTION="Clean, fast, GNOME-native email client"
 HOMEPAGE="https://github.com/hyprlab/vireo"
@@ -15,7 +15,7 @@ SRC_URI="
 "
 
 LICENSE="
-	AGPL-3.0-or-later
+	AGPL-3+
 	0BSD Apache-2.0 Apache-2.0-with-LLVM-exceptions BSD
 	CDLA-Permissive-2.0 ISC MIT MPL-2.0 Unicode-3.0 ZLIB
 "
@@ -52,8 +52,7 @@ src_install() {
 	insinto /usr/share
 	doins -r data/icons
 
-	insinto /usr/share/applications
-	doins data/co.hyprlab.Vireo.desktop
+	domenu data/co.hyprlab.Vireo.desktop
 
 	insinto /usr/share/metainfo
 	doins data/co.hyprlab.Vireo.metainfo.xml
