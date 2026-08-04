@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+  <maintainer type="person">
+    <email>web@bennypowers.com</email>
+    <name>Benny Powers</name>
+  </maintainer>
+  <longdescription>
+    Vireo is a clean, fast, GNOME-native email client supporting IMAP, SMTP,
+    and POP3 with OAuth 2.0 authentication, a three-pane layout, and a
+    unified inbox. Built with GTK4 and libadwaita for a native GNOME experience.
+  </longdescription>
+  <upstream>
+    <remote-id type="github">hyprlab/vireo</remote-id>
+  </upstream>
+</pkgmetadata>
