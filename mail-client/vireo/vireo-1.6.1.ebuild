@@ -27,7 +27,7 @@ DEPEND="
 	dev-libs/openssl:=
 	>=gui-libs/gtk-4.10.0:4
 	>=gui-libs/libadwaita-1.4.0:1
-	net-libs/libsoup:3
+	net-libs/libsoup:3.0
 	net-libs/webkit-gtk:6
 	sys-apps/dbus
 "
