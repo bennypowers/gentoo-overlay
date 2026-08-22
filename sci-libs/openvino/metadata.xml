@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		OpenVINO is a toolkit for optimizing and deploying AI inference. It
+		supports CPU, GPU (via OpenCL), and NPU targets, with frontends for
+		ONNX, TensorFlow, PyTorch, and PaddlePaddle models.
+	</longdescription>
+	<use>
+		<flag name="gpu">Build the OpenCL-based GPU inference plugin
+			(works with Intel, AMD, and other OpenCL-capable GPUs)</flag>
+		<flag name="python">Build Python bindings (openvino Python package)</flag>
+		<flag name="test">Build and install unit tests</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">openvinotoolkit/openvino</remote-id>
+	</upstream>
+</pkgmetadata>
