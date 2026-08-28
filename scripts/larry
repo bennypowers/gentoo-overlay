@@ -23,7 +23,7 @@ set -g OVERLAY_DIR (realpath (dirname (status --current-filename))/..)
 set -g LARRY_CACHE (test -n "$XDG_CACHE_HOME" && echo "$XDG_CACHE_HOME/larry" || echo "$HOME/.cache/larry")
 set -g DISTDIR $LARRY_CACHE/distfiles
 set -g GH_REPO (git -C $OVERLAY_DIR remote get-url origin | string replace -r '.*github\.com[:/]' '' | string replace -r '\.git$' '')
-set -g CACHE_DIR /tmp/overlay-version-check-cache
+set -g CACHE_DIR "$LARRY_CACHE/overlay-version-check-cache"
 set -g CACHE_MAX_AGE_HOURS 6
 set -g CHECKED_PACKAGES
 
@@ -76,7 +76,9 @@ function expand_ebuild_vars -a text ebuild_path pn pv p
     while $changed
         set changed false
         set iterations (math $iterations + 1)
-        if test $iterations -gt 10; break; end
+        if test $iterations -gt 10
+            break
+        end
         for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_path)
             set -l key (string replace -r '=.*' '' $line)
             set -l val (string match -r '"([^"]*)"' $line)[2]
@@ -127,12 +129,16 @@ end
 
 # Download all npm distfiles for every ebuild in a package so pkgdev manifest can find them.
 # pkgdev cannot resolve mirror://npm/ (it's a fake mirror prefix), so we pre-populate DISTDIR.
-function npm_fetch_all_distfiles -a cat_pkg
-    set -l pkg_dir "$OVERLAY_DIR/$cat_pkg"
-    if not test -d $pkg_dir; return; end
+function npm_fetch_all_distfiles -a atom
+    set -l pkg_dir "$OVERLAY_DIR/$atom"
+    if not test -d $pkg_dir
+        return
+    end
 
     for ebuild in (find $pkg_dir -name '*.ebuild' | sort)
-        if not grep -q 'mirror://npm/' $ebuild; continue; end
+        if not grep -q 'mirror://npm/' $ebuild
+            continue
+        end
 
         set -l pn (basename (dirname $ebuild))
         set -l ebuild_bn (basename $ebuild .ebuild)
@@ -159,7 +165,10 @@ function npm_fetch_all_distfiles -a cat_pkg
             if not test -f "$DISTDIR/$df_name"
                 msg "  npm: $df_name"
                 curl -sfLo "$DISTDIR/$df_name" "$url"
-                or begin; err "  Failed: $url"; return 1; end
+                or begin
+                    err "  Failed: $url"
+                    return 1
+                end
             end
         end
     end
@@ -236,7 +245,10 @@ function prepare_npm -a ebuild_path
         if not test -f "$DISTDIR/$df_name"
             msg "Downloading $df_name..."
             curl -sfLo "$DISTDIR/$df_name" "$url"
-            or begin; err "Failed to download $url"; return 1; end
+            or begin
+                err "Failed to download $url"
+                return 1
+            end
             msg "  -> $df_name ("(du -h "$DISTDIR/$df_name" | cut -f1)")"
         end
     end
@@ -253,10 +265,18 @@ function prepare_npm -a ebuild_path
     cd "$work"
 
     npm --cache ./npm-cache install "$DISTDIR/$distfile_name" 2>&1
-    or begin; err "npm install failed"; rm -rf "$work"; return 1; end
+    or begin
+        err "npm install failed"
+        rm -rf "$work"
+        return 1
+    end
 
     tar -caf "$DISTDIR/$_p-deps.tar.xz" npm-cache
-    or begin; err "tar failed"; rm -rf "$work"; return 1; end
+    or begin
+        err "tar failed"
+        rm -rf "$work"
+        return 1
+    end
     rm -rf "$work"
     msg "Deps:   $DISTDIR/$_p-deps.tar.xz ("(du -h "$DISTDIR/$_p-deps.tar.xz" | cut -f1)")"
 
@@ -269,7 +289,10 @@ function prepare_npm -a ebuild_path
             --notes "npm dependency cache for $_pn" \
             "$DISTDIR/$_p-deps.tar.xz" 2>&1
     end
-    or begin; err "GitHub release upload failed"; return 1; end
+    or begin
+        err "GitHub release upload failed"
+        return 1
+    end
 
     generate_manifest $ebuild_path
 end
@@ -329,14 +352,14 @@ function prepare_cargo -a ebuild_path
     set -l _found false
     switch $forge
         case github
-            for _subdir in '' 'bindings/python/'
+            for _subdir in '' bindings/python/
                 if curl -sfo "$cargo_lock_file" "https://raw.githubusercontent.com/$repo/$tag/$_subdir"Cargo.lock
                     set _found true
                     break
                 end
             end
         case sourcehut
-            for _subdir in '' 'bindings/python/'
+            for _subdir in '' bindings/python/
                 if curl -sfo "$cargo_lock_file" "$repo/blob/$tag/$_subdir"Cargo.lock
                     set _found true
                     break
@@ -411,19 +434,32 @@ function prepare_go -a ebuild_path
     set -l work (mktemp -d)
     msg "Downloading source..."
     curl -sL "$gh_url/archive/refs/tags/$tag.tar.gz" | tar xz -C "$work"
-    or begin; err "Failed to download source"; rm -rf "$work"; return 1; end
+    or begin
+        err "Failed to download source"
+        rm -rf "$work"
+        return 1
+    end
 
     set -l src_dir (find "$work" -maxdepth 1 -mindepth 1 -type d | head -1)
     msg "Vendoring Go dependencies..."
     cd "$src_dir"
     go mod vendor 2>&1
-    or begin; err "go mod vendor failed"; rm -rf "$work"; cd $OVERLAY_DIR; return 1; end
+    or begin
+        err "go mod vendor failed"
+        rm -rf "$work"
+        cd $OVERLAY_DIR
+        return 1
+    end
     cd $OVERLAY_DIR
 
     set -l pkg_dir (dirname $ebuild_path)
     set -l deps_file "$pkg_dir/$_p-deps.tar.gz"
     tar -czf "$deps_file" -C "$src_dir" vendor
-    or begin; err "tar failed"; rm -rf "$work"; return 1; end
+    or begin
+        err "tar failed"
+        rm -rf "$work"
+        return 1
+    end
     rm -rf "$work"
     msg "Deps:    $deps_file ("(du -h "$deps_file" | cut -f1)")"
 
@@ -499,12 +535,19 @@ function do_prepare_one -a ebuild_path forced_type
     end
 
     switch $type
-        case npm;        prepare_npm $ebuild_path
-        case cargo;      prepare_cargo $ebuild_path
-        case go;         prepare_go $ebuild_path
-        case rpi-kernel; prepare_rpi_kernel $ebuild_path
-        case generic;    prepare_generic $ebuild_path
-        case '*';        err "Unknown type: $type"; return 1
+        case npm
+            prepare_npm $ebuild_path
+        case cargo
+            prepare_cargo $ebuild_path
+        case go
+            prepare_go $ebuild_path
+        case rpi-kernel
+            prepare_rpi_kernel $ebuild_path
+        case generic
+            prepare_generic $ebuild_path
+        case '*'
+            err "Unknown type: $type"
+            return 1
     end
 end
 
@@ -604,6 +647,7 @@ function next_revision -a pv
 end
 
 function do_bump -a atom new_pv
+    echo "do_bump $atom $new_pv"
     parse_atom $atom; or return 1
     find_latest_ebuild; or return 1
 
@@ -613,7 +657,10 @@ function do_bump -a atom new_pv
         return 1
     end
 
-    cp "$_latest_ebuild" "$new_ebuild"; or begin; err "Copy failed"; return 1; end
+    cp "$_latest_ebuild" "$new_ebuild"; or begin
+        err "Copy failed"
+        return 1
+    end
 
     set -l rel_src (string replace "$OVERLAY_DIR/" "" $_latest_ebuild)
     set -l rel_dst (string replace "$OVERLAY_DIR/" "" $new_ebuild)
@@ -625,7 +672,7 @@ end
 
 # ── test ───────────────────────────────────────────────────────────────────────
 
-set -g LARRY_IMAGE "larry-test"
+set -g LARRY_IMAGE larry-test
 
 function do_test
     set -g _test_phases
@@ -638,10 +685,14 @@ function do_test
 
     for arg in $argv
         switch $arg
-            case --compile -c; set _test_phases clean fetch unpack compile
-            case --merge -m;   set _test_phases clean fetch unpack compile install
-            case --pretend -p; set pretend true
-            case --emerge -e;  set use_container true
+            case --compile -c
+                set _test_phases clean fetch unpack compile
+            case --merge -m
+                set _test_phases clean fetch unpack compile install
+            case --pretend -p
+                set pretend true
+            case --emerge -e
+                set use_container true
             case --help -h
                 echo "Usage: larry test [options] <atom>"
                 echo ""
@@ -660,14 +711,22 @@ function do_test
                     err "Unknown option or phase: $arg"
                     return 1
                 end
-            case '-*'; err "Unknown option: $arg"; return 1
+            case '-*'
+                err "Unknown option: $arg"
+                return 1
             case '*'
-                if test -n "$atom"; err "Multiple atoms not supported"; return 1; end
+                if test -n "$atom"
+                    err "Multiple atoms not supported"
+                    return 1
+                end
                 set atom $arg
         end
     end
 
-    if test -z "$atom"; err "No package atom specified"; return 1; end
+    if test -z "$atom"
+        err "No package atom specified"
+        return 1
+    end
 
     if test (count $_test_phases) -eq 0
         set _test_phases clean fetch unpack
@@ -805,9 +864,7 @@ function find_all_ebuilds
     find $OVERLAY_DIR -name "*.ebuild" -type f | grep -v metadata | sort
 end
 
-function find_latest_versioned_ebuild
-    set -l category $argv[1]
-    set -l package $argv[2]
+function find_latest_versioned_ebuild -a category package
     set -l package_dir "$OVERLAY_DIR/$category/$package"
     set -l ebuilds (find $package_dir -name "*.ebuild" ! -name "*-9999.ebuild" 2>/dev/null | sort -V | tail -1)
     if test -n "$ebuilds"
@@ -839,7 +896,7 @@ end
 
 function is_rpi_kernel_package
     grep -q "inherit.*kernel-build" $argv[1]
-    and grep -q 'raspberrypi/linux' $argv[1]
+    and grep -q raspberrypi/linux $argv[1]
 end
 
 function get_npm_name
@@ -850,7 +907,10 @@ function get_npm_name
     # Only take the first mirror://npm/ line (ebuilds may have optional deps like webui?
     # that also match grep, and multi-line processing breaks variable expansion)
     set -l npm_line (grep 'mirror://npm/' $ebuild_file | head -1 | string trim)
-    if test -z "$npm_line"; echo $package_name; return; end
+    if test -z "$npm_line"
+        echo $package_name
+        return
+    end
     for line in (grep -E '^[A-Z_]+="[^"]*"' $ebuild_file)
         set -l key (string replace -r '=.*' '' $line)
         set -l val (string match -r '"([^"]*)"' $line)[2]
@@ -866,9 +926,15 @@ end
 function fetch_npm_version
     set -l npm_name $argv[1]
     set -l cache_file "$CACHE_DIR/npm-"(string replace -a / - $npm_name)
-    if test -f $cache_file; cat $cache_file; return 0; end
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
     set -l ver (curl -s "https://registry.npmjs.org/$npm_name/latest" | jq -r '.version // empty' 2>/dev/null)
-    if test -n "$ver"; echo $ver | tee $cache_file; return 0; end
+    if test -n "$ver"
+        echo $ver | tee $cache_file
+        return 0
+    end
     return 1
 end
 
@@ -877,9 +943,12 @@ function extract_github_repo
     set -l github_urls (grep -oE 'https?://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' $ebuild_file)
     for url in $github_urls
         set -l repo (echo $url | sed -E 's|.*github\.com/||' | sed -E 's|\.git$||' | cut -d/ -f1,2)
-        if string match -qr '\$\{' "$repo"; continue; end
+        if string match -qr '\$\{' "$repo"
+            continue
+        end
         if string match -qr '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' "$repo"
-            echo $repo; return 0
+            echo $repo
+            return 0
         end
     end
     return 1
@@ -887,10 +956,14 @@ end
 
 function expand_pn -a value pn
     switch $value
-        case '${PN//-/_}' '$PN//-/_'; string replace -a '-' '_' $pn
-        case '${PN/-/_}' '$PN/-/_';   string replace '-' '_' $pn
-        case '${PN}' '$PN';           echo $pn
-        case '*';                      echo $value
+        case '${PN//-/_}' '$PN//-/_'
+            string replace -a - _ $pn
+        case '${PN/-/_}' '$PN/-/_'
+            string replace - _ $pn
+        case '${PN}' '$PN'
+            echo $pn
+        case '*'
+            echo $value
     end
 end
 
@@ -898,18 +971,30 @@ function get_pypi_name
     set -l ebuild_file $argv[1]
     set -l package_name (basename (dirname $ebuild_file))
     set -l pypi_pn (get_ebuild_var $ebuild_file PYPI_PN)
-    if test -n "$pypi_pn"; echo (expand_pn $pypi_pn $package_name); return 0; end
+    if test -n "$pypi_pn"
+        echo (expand_pn $pypi_pn $package_name)
+        return 0
+    end
     set -l my_pn (get_ebuild_var $ebuild_file MY_PN)
-    if test -n "$my_pn"; echo (expand_pn $my_pn $package_name); return 0; end
+    if test -n "$my_pn"
+        echo (expand_pn $my_pn $package_name)
+        return 0
+    end
     echo $package_name
 end
 
 function fetch_pypi_version
     set -l package_name $argv[1]
     set -l cache_file "$CACHE_DIR/pypi-$package_name"
-    if test -f $cache_file; cat $cache_file; return 0; end
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
     set -l ver (curl -s "https://pypi.org/pypi/$package_name/json" | jq -r '.info.version' 2>/dev/null)
-    if test -n "$ver" -a "$ver" != "null"; echo $ver | tee $cache_file; return 0; end
+    if test -n "$ver" -a "$ver" != null
+        echo $ver | tee $cache_file
+        return 0
+    end
     return 1
 end
 
@@ -928,18 +1013,26 @@ end
 
 function extract_date_from_string
     set -l date_match (string match -r '(20\d{6})' $argv[1])
-    if test (count $date_match) -ge 2; echo $date_match[2]; return 0; end
+    if test (count $date_match) -ge 2
+        echo $date_match[2]
+        return 0
+    end
     return 1
 end
 
 function fetch_rpi_firmware_version
     set -l cache_file "$CACHE_DIR/rpi-firmware"
-    if test -f $cache_file; cat $cache_file; return 0; end
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
 
     # Latest firmware release tag (format: 1.YYYYMMDD)
     set -l fw_tag (gh release list -R raspberrypi/firmware --limit 1 \
         --json tagName -q '.[0].tagName' 2>/dev/null)
-    if test -z "$fw_tag" -o "$fw_tag" = "null"; return 1; end
+    if test -z "$fw_tag" -o "$fw_tag" = null
+        return 1
+    end
 
     set -l fw_date (string replace '1.' '' $fw_tag)
 
@@ -947,13 +1040,17 @@ function fetch_rpi_firmware_version
     set -l commit (curl -sfL \
         "https://raw.githubusercontent.com/raspberrypi/firmware/$fw_tag/extra/git_hash" \
         2>/dev/null | string trim)
-    if test -z "$commit"; return 1; end
+    if test -z "$commit"
+        return 1
+    end
 
     # Kernel version from that commit's Makefile
     set -l kver (curl -sfL \
         "https://raw.githubusercontent.com/raspberrypi/linux/$commit/Makefile" 2>/dev/null \
         | awk '/^VERSION/{v=$3} /^PATCHLEVEL/{p=$3} /^SUBLEVEL/{s=$3; print v"."p"."s; exit}')
-    if test -z "$kver"; return 1; end
+    if test -z "$kver"
+        return 1
+    end
 
     set -l full_ver "$kver"_p"$fw_date"
     echo $full_ver | tee $cache_file
@@ -963,7 +1060,10 @@ end
 function fetch_github_latest_tag_by_date
     set -l repo $argv[1]
     set -l cache_file "$CACHE_DIR/github-tags-"(string replace -a / - $repo)
-    if test -f $cache_file; cat $cache_file; return 0; end
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
     set -l owner (string split / $repo)[1]
     set -l name (string split / $repo)[2]
     set -l query '
@@ -984,52 +1084,89 @@ function fetch_github_latest_tag_by_date
         -f query="$query" -f owner="$owner" -f name="$name" \
         --jq '.data.repository.refs.nodes[] | .name + "|" + (.target.committedDate // .target.tagger.date // .target.target.committedDate // "")' \
         2>/dev/null)
-    if test -z "$tag_data"; return 1; end
+    if test -z "$tag_data"
+        return 1
+    end
     for line in $tag_data
         set -l tag_name (string split '|' $line)[1]
         set -l tag_raw_date (string split '|' $line)[2]
-        if string match -qri 'alpha|beta|rc|dev|nightly|canary' "$tag_name"; continue; end
+        if string match -qri 'alpha|beta|rc|dev|nightly|canary' "$tag_name"
+            continue
+        end
         set -l tag_date (extract_date_from_string "$tag_name")
         if test -z "$tag_date" -a -n "$tag_raw_date"
             set tag_date (string replace -r -a '-' '' (string sub -l 10 $tag_raw_date))
         end
-        if test -n "$tag_date"; echo "$tag_name|$tag_date" | tee $cache_file; return 0; end
+        if test -n "$tag_date"
+            echo "$tag_name|$tag_date" | tee $cache_file
+            return 0
+        end
     end
     return 1
 end
 
-function fetch_github_version
-    set -l repo $argv[1]
+function fetch_github_version -a repo
     set -l cache_file "$CACHE_DIR/github-"(string replace -a / - $repo)
-    if test -f $cache_file; cat $cache_file; return 0; end
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
+
     set -l release_ver ""
     set -l tag_ver ""
-    set -l raw_release (gh release list -R $repo --limit 1 --json tagName -q '.[0].tagName' 2>/dev/null)
-    if test -n "$raw_release" -a "$raw_release" != "null"
-        if not string match -q -r '^\{' "$raw_release"; set release_ver (strip_tag_prefix $raw_release); end
+
+    # 1. Fetch official latest release (handles draft/prerelease filtering automatically)
+    set -l raw_release (gh api repos/$repo/releases/latest --jq '.tag_name' 2>/dev/null)
+    if test -n "$raw_release" -a "$raw_release" != null
+        if not string match -q -r '^\{' "$raw_release"
+            set release_ver (strip_tag_prefix $raw_release)
+        end
     end
-    set -l raw_tag (gh api "repos/$repo/tags" --jq '.[0].name' 2>/dev/null)
-    if test -n "$raw_tag" -a "$raw_tag" != "null"
-        if not string match -q -r '^\{' "$raw_tag"; set tag_ver (strip_tag_prefix $raw_tag); end
+
+    # 2. Fetch latest tag sorted by semver/date fallback
+    set -l raw_tag (gh api "repos/$repo/tags?per_page=100" --jq '.[].name' 2>/dev/null | head -n 1)
+    if test -n "$raw_tag" -a "$raw_tag" != null
+        if not string match -q -r '^\{' "$raw_tag"
+            set tag_ver (strip_tag_prefix $raw_tag)
+        end
     end
+
     set -l ver ""
+
     if test -n "$release_ver" -a -n "$tag_ver"
         if is_version_like $release_ver; and is_version_like $tag_ver
             set -l newer (compare_versions $release_ver $tag_ver)
-            if test "$newer" = "outdated"; set ver $tag_ver; else; set ver $release_ver; end
-        else if is_version_like $tag_ver; set ver $tag_ver
-        else if is_version_like $release_ver; set ver $release_ver; end
-    else if test -n "$release_ver"; set ver $release_ver
-    else if test -n "$tag_ver"; set ver $tag_ver; end
-    if test -n "$ver"; and is_version_like $ver; echo $ver | tee $cache_file; return 0; end
+            if test "$newer" = outdated
+                set ver $tag_ver
+            else
+                set ver $release_ver
+            end
+        else if is_version_like $tag_ver
+            set ver $tag_ver
+        else if is_version_like $release_ver
+            set ver $release_ver
+        end
+    else if test -n "$release_ver"
+        set ver $release_ver
+    else if test -n "$tag_ver"
+        set ver $tag_ver
+    end
+
+    if test -n "$ver"; and is_version_like $ver
+        echo $ver | tee $cache_file
+        return 0
+    end
+
     set -l tag_info (fetch_github_latest_tag_by_date $repo)
-    if test -n "$tag_info"; set -g GITHUB_TAG_INFO $tag_info; return 2; end
+    if test -n "$tag_info"
+        set -g GITHUB_TAG_INFO $tag_info
+        return 2
+    end
+
     return 1
 end
 
-function compare_versions
-    set -l current $argv[1]
-    set -l latest $argv[2]
+function compare_versions -a current latest
     python3 -c "
 from packaging import version
 import re
@@ -1046,96 +1183,142 @@ except Exception: print('unknown')
 " 2>/dev/null
 end
 
-function parse_upstream_dependencies
-    set -l ebuild_file $argv[1]
-    grep -E "^\s*(R|B)?DEPEND=" $ebuild_file | \
-        sed 's/.*="\?\(.*\)"\?/\1/' | \
-        grep -oE '[a-z0-9-]+/[a-z0-9_-]+' | sort -u
+function parse_upstream_dependencies -a ebuild_file
+    grep -E "^\s*(R|B)?DEPEND=" $ebuild_file | sed 's/.*="\?\(.*\)"\?/\1/' | grep -oE '[a-z0-9-]+/[a-z0-9_-]+' | sort -u
 end
 
-function is_in_overlay
-    set -l dep $argv[1]
-    set -l category (string split / $dep)[1]
-    set -l package (string split / $dep)[2]
+function _get_latest_ebuild -a atom
+    set -l parts (string split / $atom)
+    echo (find_latest_versioned_ebuild $parts[1] $parts[2])
+end
+
+function is_in_overlay -a atom
+    set -l _splits (string split / $atom)
+    set -l category $_splits[1]
+    set -l package $_splits[2]
     test -d "$OVERLAY_DIR/$category/$package"
 end
 
-function check_package
-    set -l cat_pkg $argv[1]
-    set -l depth $argv[2]
-    set -l category (string split / $cat_pkg)[1]
-    set -l package (string split / $cat_pkg)[2]
+function _get_package_type -a atom
+    set -l ebuild_file (_get_latest_ebuild $atom)
+    if is_rpi_kernel_package $ebuild_file
+        echo RPi-FW
+    else if is_pypi_package $ebuild_file
+        echo PyPI
+    else if is_npm_package $ebuild_file
+        echo npm
+    else if set -l repo (extract_github_repo $ebuild_file)
+        echo GitHub
+    else
+        echo unknown
+    end
+end
 
-    if contains $cat_pkg $CHECKED_PACKAGES; return 0; end
-    set -g CHECKED_PACKAGES $CHECKED_PACKAGES $cat_pkg
+function get_package_latest_version -a atom
+    set -l ebuild_file (_get_latest_ebuild $atom)
+    set -l type (_get_package_type $atom)
+    switch $type
+        case RPi-FW
+            echo (fetch_rpi_firmware_version)
+        case PyPI
+            set -l pypi_name (get_pypi_name $ebuild_file)
+            echo (fetch_pypi_version $pypi_name)
+        case npm
+            set -l npm_name (get_npm_name $ebuild_file)
+            echo (fetch_npm_version $npm_name)
+        case GitHub
+            set -l repo (extract_github_repo $ebuild_file)
+            echo (fetch_github_version $repo)
+        case '*'
+            echo unknown
+    end
+    return
+end
 
-    set -l ebuild_file (find_latest_versioned_ebuild $category $package)
+function check_package -a atom depth
+    set -l _splits (string split / $atom)
+    set -l category $_splits[1]
+    set -l package $_splits[2]
+    set -l type (_get_package_type $atom)
+
+    if contains $atom $CHECKED_PACKAGES
+        return 0
+    end
+    set -g CHECKED_PACKAGES $CHECKED_PACKAGES $atom
+
+    set -l ebuild_file (_get_latest_ebuild_for_atom $atom)
     set -l indent (string repeat -n (math $depth \* 2) " ")
 
     if test -z "$ebuild_file"
         if has_live_ebuild $category $package
             set ebuild_file "$OVERLAY_DIR/$category/$package/$package-9999.ebuild"
             set -l current_ver "9999 (live)"
-            set -l latest_ver "unknown"
-            set -l src "unknown"
-            set -l status_label "LIVE"
-            if is_rpi_kernel_package $ebuild_file
-                set src "RPi-FW"
-                set latest_ver (fetch_rpi_firmware_version)
-                if test -n "$latest_ver"; set status_label "HAS-RELEASE"; end
-            else if is_pypi_package $ebuild_file
-                set src "PyPI"
-                set -l pypi_name (get_pypi_name $ebuild_file)
-                set latest_ver (fetch_pypi_version $pypi_name)
-                if test -n "$latest_ver"; set status_label "HAS-RELEASE"; end
-            else if is_npm_package $ebuild_file
-                set src "npm"
-                set -l npm_name (get_npm_name $ebuild_file)
-                set latest_ver (fetch_npm_version $npm_name)
-                if test -n "$latest_ver"; set status_label "HAS-RELEASE"; end
-            else if set -l repo (extract_github_repo $ebuild_file)
-                set src "GitHub"
-                set latest_ver (fetch_github_version $repo)
-                if test -n "$latest_ver"; set status_label "HAS-RELEASE"; end
+            set -l latest_ver (get_package_latest_version $atom)
+            set -l status_label LIVE
+            switch $type
+                case RPi-FW
+                    if test -n "$latest_ver"
+                        set status_label HAS-RELEASE
+                    end
+                case PyPI
+                    set -l pypi_name (get_pypi_name $ebuild_file)
+                    if test -n "$latest_ver"
+                        set status_label HAS-RELEASE
+                    end
+                case npm
+                    set -l npm_name (get_npm_name $ebuild_file)
+                    if test -n "$latest_ver"
+                        set status_label HAS-RELEASE
+                    end
+                case GitHub
+                    if test -n "$latest_ver"
+                        set status_label HAS-RELEASE
+                    end
             end
-            printf '%s%s\t%s\t%s\t%s\t%s\n' "$indent" "$cat_pkg" "$current_ver" "$latest_ver" "$status_label" "$src"
+            printf '%s%s\t%s\t%s\t%s\t%s\n' "$indent" "$atom" "$current_ver" "$latest_ver" "$status_label" "$type"
         end
         return 0
     end
 
     set -l current_ver (get_version_from_filename $ebuild_file)
-    set -l latest_ver "unknown"
-    set -l src "unknown"
-    set -l status_label "UNKNOWN"
+    set -l latest_ver unknown
+    set -l src unknown
+    set -l status_label UNKNOWN
 
     set -g GITHUB_TAG_INFO ""
     set -l fetch_result 1
-    if is_rpi_kernel_package $ebuild_file
-        set src "RPi-FW:raspberrypi/firmware"
-        set latest_ver (fetch_rpi_firmware_version)
-        and set fetch_result 0
-    else if is_pypi_package $ebuild_file
-        set -l pypi_name (get_pypi_name $ebuild_file)
-        set src "PyPI:$pypi_name"
-        set latest_ver (fetch_pypi_version $pypi_name)
-        and set fetch_result 0
-    else if is_npm_package $ebuild_file
-        set -l npm_name (get_npm_name $ebuild_file)
-        set src "npm:$npm_name"
-        set latest_ver (fetch_npm_version $npm_name)
-        and set fetch_result 0
-    else if set -l repo (extract_github_repo $ebuild_file)
-        set src "GitHub:$repo"
-        set latest_ver (fetch_github_version $repo)
-        set fetch_result $status
+
+    switch $type
+        case RPi-FW
+            set src "RPi-FW:raspberrypi/firmware"
+            set latest_ver (fetch_rpi_firmware_version)
+            and set fetch_result 0
+        case PyPI
+            set -l pypi_name (get_pypi_name $ebuild_file)
+            set src "PyPI:$pypi_name"
+            set latest_ver (fetch_pypi_version $pypi_name)
+            and set fetch_result 0
+        case npm
+            set -l npm_name (get_npm_name $ebuild_file)
+            set src "npm:$npm_name"
+            set latest_ver (fetch_npm_version $npm_name)
+            and set fetch_result 0
+        case GitHub
+            set -l repo (extract_github_repo $ebuild_file)
+            set src "GitHub:$repo"
+            set latest_ver (fetch_github_version $repo)
+            set fetch_result $status
     end
 
-    if test $fetch_result -eq 0 -a -n "$latest_ver" -a "$latest_ver" != "unknown"
+    if test $fetch_result -eq 0 -a -n "$latest_ver" -a "$latest_ver" != unknown
         set -l comparison (compare_versions $current_ver $latest_ver)
         switch $comparison
-            case outdated; set status_label "OUTDATED"
-            case current;  set status_label "UP-TO-DATE"
-            case newer;    set status_label "AHEAD"
+            case outdated
+                set status_label OUTDATED
+            case current
+                set status_label UP-TO-DATE
+            case newer
+                set status_label AHEAD
         end
     else if test $fetch_result -eq 2 -a -n "$GITHUB_TAG_INFO"
         set -l tag_name (string split '|' $GITHUB_TAG_INFO)[1]
@@ -1144,25 +1327,27 @@ function check_package
         set latest_ver "$tag_name"
         if test -n "$current_date" -a -n "$tag_date"
             if test "$tag_date" -gt "$current_date"
-                set status_label "NEWER-TAG"
+                set status_label NEWER-TAG
             else if test "$tag_date" = "$current_date"
-                set status_label "UP-TO-DATE"
+                set status_label UP-TO-DATE
             else
-                set status_label "AHEAD"
+                set status_label AHEAD
             end
         else
-            set status_label "CHECK-TAG"
+            set status_label CHECK-TAG
         end
     else
         set latest_ver "?"
     end
 
-    printf '%s%s\t%s\t%s\t%s\t%s\n' "$indent" "$cat_pkg" "$current_ver" "$latest_ver" "$status_label" "$src"
+    printf '%s%s\t%s\t%s\t%s\t%s\n' "$indent" "$atom" "$current_ver" "$latest_ver" "$status_label" "$src"
 
     if test $depth -lt 3
         set -l deps (parse_upstream_dependencies $ebuild_file)
-        for dep in $deps
-            if is_in_overlay $dep; check_package $dep (math $depth + 1); end
+        for d in $deps
+            if is_in_overlay $d
+                check_package $d (math $depth + 1)
+            end
         end
     end
 end
@@ -1222,7 +1407,9 @@ function do_upstream
     else
         for ebuild in (find_all_ebuilds)
             set -l cat_pkg (get_package_info $ebuild)
-            if not contains $cat_pkg $packages; set packages $packages $cat_pkg; end
+            if not contains $cat_pkg $packages
+                set packages $packages $cat_pkg
+            end
         end
     end
 
@@ -1232,7 +1419,7 @@ function do_upstream
             check_package $cat_pkg 0
         end
     end | if not $verbose
-        grep -v 'UP-TO-DATE'
+        grep -v UP-TO-DATE
     else
         cat
     end | column -t -s \t | colorize_upstream
@@ -1283,19 +1470,24 @@ function do_import
             case '--from=*'
                 set from_repo (string replace '--from=' '' $arg)
             case '-*'
-                err "Unknown option: $arg"; return 1
+                err "Unknown option: $arg"
+                return 1
             case '*'
                 if test "$from_repo" = __next__
                     set from_repo $arg
                 else if test -z "$atom"
                     set atom $arg
                 else
-                    err "Too many arguments"; return 1
+                    err "Too many arguments"
+                    return 1
                 end
         end
     end
 
-    if test -z "$atom"; err "No package atom specified"; return 1; end
+    if test -z "$atom"
+        err "No package atom specified"
+        return 1
+    end
 
     set -l category (string split / $atom)[1]
     set -l package (string split / $atom)[2]
@@ -1373,7 +1565,7 @@ function do_import
     set meta "$meta
 </pkgmetadata>"
 
-    printf "%s\n" $meta > "$dst_dir/metadata.xml"
+    printf "%s\n" $meta >"$dst_dir/metadata.xml"
     msg "Created:  metadata.xml"
 
     # Prepare the imported ebuild
@@ -1409,14 +1601,23 @@ switch $subcommand
                 case --revision -r
                     set mode revision
                 case '-*'
-                    err "Unknown option: $arg"; exit 1
+                    err "Unknown option: $arg"
+                    exit 1
                 case '*'
-                    if test -z "$atom"; set atom $arg
-                    else if test -z "$new_version"; set new_version $arg
-                    else; err "Too many arguments"; exit 1; end
+                    if test -z "$atom"
+                        set atom $arg
+                    else if test -z "$new_version"
+                        set new_version $arg
+                    else
+                        err "Too many arguments"
+                        exit 1
+                    end
             end
         end
-        if test -z "$atom"; err "No package atom specified"; exit 1; end
+        if test -z "$atom"
+            err "No package atom specified"
+            exit 1
+        end
         switch $mode
             case revision
                 set -l pv_for_rev ""
@@ -1425,7 +1626,10 @@ switch $subcommand
                 set pv_for_rev (next_revision $_latest_pv)
                 do_bump $atom $pv_for_rev
             case version
-                if test -z "$new_version"; err "No version specified (use --revision for revision bumps)"; exit 1; end
+                echo "new_version: $new_version"
+                if test -z "$new_version"
+                    set new_version (get_package_latest_version $atom)
+                end
                 do_bump $atom $new_version
         end
 
@@ -1470,7 +1674,10 @@ switch $subcommand
             do_prepare_one $ebuild $forced_type
             or set failures (math $failures + 1)
         end
-        if test $failures -gt 0; err "$failures package(s) failed"; exit 1; end
+        if test $failures -gt 0
+            err "$failures package(s) failed"
+            exit 1
+        end
 
     case import
         do_import $rest
