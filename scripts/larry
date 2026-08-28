@@ -346,9 +346,9 @@ function update_ebuild_crates -a cargo_lock_file ebuild_path
                 next
             }
             { print }
-        ' "$ebuild_path" > "$ebuild_path.tmp" && mv "$ebuild_path.tmp" "$ebuild_path"
+        ' "$ebuild_path" >"$ebuild_path.tmp" && mv "$ebuild_path.tmp" "$ebuild_path"
     else
-        echo -e "\n$block" >> "$ebuild_path"
+        echo -e "\n$block" >>"$ebuild_path"
     end
 
     echo $count
@@ -674,7 +674,6 @@ function next_revision -a pv
 end
 
 function do_bump -a atom new_pv
-    echo "do_bump $atom $new_pv"
     parse_atom $atom; or return 1
     find_latest_ebuild; or return 1
 
@@ -1675,7 +1674,6 @@ switch $subcommand
                 set pv_for_rev (next_revision $_latest_pv)
                 do_bump $atom $pv_for_rev
             case version
-                echo "new_version: $new_version"
                 if test -z "$new_version"
                     set new_version (get_package_latest_version $atom)
                 end
