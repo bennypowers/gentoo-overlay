@@ -299,6 +299,61 @@ end
 
 # ── prepare: cargo ──────────────────────────────────────────────────────────────
 
+function update_ebuild_crates -a cargo_lock_file ebuild_path
+    if not test -f "$cargo_lock_file" -a -f "$ebuild_path"
+        return 1
+    end
+
+    # Parse Cargo.lock for crates matching source = "registry+..."
+    set -l crates (awk '
+        BEGIN { name=""; version=""; source="" }
+        /^\[\[package\]\]/ {
+            if (name && version && source ~ /^registry\+/) {
+                print name "@" version
+            }
+            name=""; version=""; source=""
+        }
+        /^name = /    { gsub(/^name = "|"$|"[ \t]*#.*/, ""); name=$0 }
+        /^version = / { gsub(/^version = "|"$|"[ \t]*#.*/, ""); version=$0 }
+        /^source = /  { gsub(/^source = "|"$|"[ \t]*#.*/, ""); source=$0 }
+        END {
+            if (name && version && source ~ /^registry\+/) {
+                print name "@" version
+            }
+        }
+    ' "$cargo_lock_file" | sort -u)
+
+    set -l count (count $crates)
+    if test $count -eq 0
+        return 1
+    end
+
+    # Format into Gentoo CRATES="..." block
+    set -l crates_formatted (string join \n (string replace -r '^' '\t' $crates))
+    set -l block "CRATES=\"\n$crates_formatted\n\""
+
+    # Replace existing CRATES="..." block in ebuild or append if missing
+    if grep -q 'CRATES="' "$ebuild_path"
+        awk -v block="$block" '
+            BEGIN { in_crates = 0 }
+            /CRATES="/ {
+                print block
+                in_crates = 1
+                next
+            }
+            in_crates {
+                if ($0 ~ /"$/) { in_crates = 0 }
+                next
+            }
+            { print }
+        ' "$ebuild_path" > "$ebuild_path.tmp" && mv "$ebuild_path.tmp" "$ebuild_path"
+    else
+        echo -e "\n$block" >> "$ebuild_path"
+    end
+
+    echo $count
+end
+
 function prepare_cargo -a ebuild_path
     parse_ebuild $ebuild_path
 
@@ -373,35 +428,7 @@ function prepare_cargo -a ebuild_path
     end
 
     msg "Parsing crates and updating ebuild..."
-    set -l crate_count (python3 -c "
-import re, sys
-
-with open(sys.argv[1]) as f:
-    lock = f.read()
-with open(sys.argv[2]) as f:
-    ebuild = f.read()
-
-packages = re.findall(
-    r'\[\[package\]\]\nname = \"([^\"]+)\"\nversion = \"([^\"]+)\"(?:\nsource = \"([^\"]*?)\")?',
-    lock
-)
-crates = sorted(
-    f'{name}@{version}'
-    for name, version, source in packages
-    if source and source.startswith('registry+')
-)
-
-if not crates:
-    sys.exit(1)
-
-block = 'CRATES=\"\n' + '\n'.join(f'\t{c}' for c in crates) + '\n\"'
-ebuild = re.sub(r'CRATES=\".*?\"', block, ebuild, count=1, flags=re.DOTALL)
-
-with open(sys.argv[2], 'w') as f:
-    f.write(ebuild)
-
-print(len(crates))
-" "$cargo_lock_file" "$ebuild_path")
+    set -l crate_count (update_ebuild_crates $cargo_lock_file $ebuild_path)
     rm -f "$cargo_lock_file"
 
     if test -z "$crate_count"
@@ -852,8 +879,7 @@ function get_version_from_filename -a ebuild_file
     string replace --regex -- '-r[0-9]+$' "" $ver
 end
 
-function get_package_info
-    set -l ebuild_path $argv[1]
+function get_package_info -a ebuild_path
     set -l package_name (basename (dirname $ebuild_path))
     set -l category (basename (dirname (dirname $ebuild_path)))
     echo "$category/$package_name"
@@ -992,19 +1018,6 @@ function fetch_pypi_version
     return 1
 end
 
-function strip_tag_prefix
-    set -l tag $argv[1]
-    set tag (string replace --regex -- '^rocm-' '' $tag)
-    set tag (string replace --regex -- '^release-' '' $tag)
-    set tag (string replace --regex -- '^[vV]\.' '' $tag)
-    set tag (string replace --regex -- '^[vV](?=\d)' '' $tag)
-    echo $tag
-end
-
-function is_version_like
-    string match -qr '^\d+[\.\d]*' $argv[1]
-end
-
 function extract_date_from_string
     set -l date_match (string match -r '(20\d{6})' $argv[1])
     if test (count $date_match) -ge 2
@@ -1051,8 +1064,7 @@ function fetch_rpi_firmware_version
     return 0
 end
 
-function fetch_github_latest_tag_by_date
-    set -l repo $argv[1]
+function fetch_github_latest_tag_by_date -a repo
     set -l cache_file "$CACHE_DIR/github-tags-"(string replace -a / - $repo)
     if test -f $cache_file
         cat $cache_file
@@ -1097,6 +1109,17 @@ function fetch_github_latest_tag_by_date
         end
     end
     return 1
+end
+
+function strip_tag_prefix -a tag
+    set tag (string replace --regex -- '^(bun|rocm|release)-' '' $tag)
+    set tag (string replace --regex -- '^[vV]\.' '' $tag)
+    set tag (string replace --regex -- '^[vV](?=\d)' '' $tag)
+    echo $tag
+end
+
+function is_version_like
+    string match -qr '^\d+[\.\d]*' $argv[1]
 end
 
 function fetch_github_version -a repo
@@ -1161,27 +1184,55 @@ function fetch_github_version -a repo
 end
 
 function compare_versions -a current latest
-    python3 -c "
-from packaging import version
-import re
-def normalize(v):
-    # Gentoo _p (patchlevel) -> PEP 440 .post for comparison
-    return re.sub(r'_p(\d+)', r'.post\1', v)
-try:
-    current = version.parse(normalize('$current'))
-    latest = version.parse(normalize('$latest'))
-    if current < latest: print('outdated')
-    elif current == latest: print('current')
-    else: print('newer')
-except Exception: print('unknown')
-" 2>/dev/null
+    if test -z "$current" -o -z "$latest"
+        echo unknown
+        return 1
+    end
+
+    if test "$current" = "$latest"
+        echo current
+        return 0
+    end
+
+    # Normalize Gentoo suffixes into sort -V compatible semver order:
+    # alpha (.a) < beta (.b) < pre (.c) < rc (.d) < release (.e) < patch (.p)
+    function _norm_ver -a v
+        # Append .e to plain releases so 1.0 sorts AFTER 1.0_rc1 (.1.0.d1) but BEFORE 1.0_p1 (.1.0.p1)
+        set -l norm (string replace -r '(_alpha|_beta|_pre|_rc|_p|\d+)$' '$1' "$v")
+
+        # If no suffix exists before a patch or at end, tag main release with .e
+        set norm (string replace -r '([0-9]+)(_p|\z)' '$1.e$2' "$v")
+
+        string replace -a _alpha '.a' "$norm" \
+            | string replace -a _beta '.b' \
+            | string replace -a _pre '.c' \
+            | string replace -a _rc '.d' \
+            | string replace -a _p '.p'
+    end
+
+    set -l norm_cur (_norm_ver "$current")
+    set -l norm_lat (_norm_ver "$latest")
+
+    if test "$norm_cur" = "$norm_lat"
+        echo current
+        return 0
+    end
+
+    # Sort normalized strings using version sort
+    set -l sorted (printf "%s\n%s\n" "$norm_cur" "$norm_lat" | sort -V)
+
+    if test "$sorted[1]" = "$norm_cur"
+        echo outdated
+    else
+        echo newer
+    end
 end
 
 function parse_upstream_dependencies -a ebuild_file
     grep -E "^\s*(R|B)?DEPEND=" $ebuild_file | sed 's/.*="\?\(.*\)"\?/\1/' | grep -oE '[a-z0-9-]+/[a-z0-9_-]+' | sort -u
 end
 
-function _get_latest_ebuild -a atom
+function get_latest_ebuild -a atom
     set -l parts (string split / $atom)
     echo (find_latest_versioned_ebuild $parts[1] $parts[2])
 end
@@ -1194,10 +1245,10 @@ function is_in_overlay -a atom
 end
 
 function _get_package_type -a atom
-    set -l ebuild_file (_get_latest_ebuild $atom)
+    set -l ebuild_file (get_latest_ebuild $atom)
     if test -z "$ebuild_file"
-      err "!! No ebuild file for $atom"
-      return 1
+        err "!! No ebuild file for $atom"
+        return 1
     end
     if is_rpi_kernel_package $ebuild_file
         echo RPi-FW
@@ -1205,7 +1256,7 @@ function _get_package_type -a atom
         echo PyPI
     else if is_npm_package $ebuild_file
         echo npm
-    else if set -l repo (extract_github_repo $ebuild_file)
+    else if set -l r (extract_github_repo $ebuild_file)
         echo GitHub
     else
         echo unknown
@@ -1213,7 +1264,7 @@ function _get_package_type -a atom
 end
 
 function get_package_latest_version -a atom
-    set -l ebuild_file (_get_latest_ebuild $atom)
+    set -l ebuild_file (get_latest_ebuild $atom)
     set -l type (_get_package_type $atom)
     switch $type
         case RPi-FW
@@ -1244,7 +1295,7 @@ function check_package -a atom depth
     end
     set -g CHECKED_PACKAGES $CHECKED_PACKAGES $atom
 
-    set -l ebuild_file (_get_latest_ebuild $atom)
+    set -l ebuild_file (get_latest_ebuild $atom)
     set -l indent (string repeat -n (math $depth \* 2) " ")
 
     if test -z "$ebuild_file"
