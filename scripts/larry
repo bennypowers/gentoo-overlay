@@ -845,8 +845,7 @@ function setup_upstream_cache
     mkdir -p $CACHE_DIR
 end
 
-function get_version_from_filename
-    set -l ebuild_file $argv[1]
+function get_version_from_filename -a ebuild_file
     set -l bn (basename $ebuild_file .ebuild)
     set -l package_name (basename (dirname $ebuild_file))
     set -l ver (string replace -r "^$package_name-" "" $bn)
@@ -880,27 +879,24 @@ function has_live_ebuild
     test -f "$OVERLAY_DIR/$category/$package/$package-9999.ebuild"
 end
 
-function get_ebuild_var
-    set -l ebuild_file $argv[1]
-    set -l var_name $argv[2]
+function get_ebuild_var -a ebuild_file var_name
     grep -E "^$var_name=" $ebuild_file | head -1 | sed -E "s/^$var_name=\"?([^\"]*)\"?.*/\1/" | string trim
 end
 
-function is_pypi_package
-    grep -q "inherit.*pypi" $argv[1]
+function is_pypi_package -a ebuild_file
+    grep -q "inherit.*pypi" $ebuild_file
 end
 
-function is_npm_package
-    grep -q 'mirror://npm/' $argv[1]
+function is_npm_package -a ebuild_file
+    grep -q 'mirror://npm/' $ebuild_file
 end
 
-function is_rpi_kernel_package
-    grep -q "inherit.*kernel-build" $argv[1]
-    and grep -q raspberrypi/linux $argv[1]
+function is_rpi_kernel_package -a ebuild_file
+    grep -q "inherit.*kernel-build" $ebuild_file
+    and grep -q raspberrypi/linux $ebuild_file
 end
 
-function get_npm_name
-    set -l ebuild_file $argv[1]
+function get_npm_name -a ebuild_file
     set -l package_name (basename (dirname $ebuild_file))
     set -l pv (get_version_from_filename $ebuild_file)
     set -l p "$package_name-$pv"
@@ -938,8 +934,7 @@ function fetch_npm_version
     return 1
 end
 
-function extract_github_repo
-    set -l ebuild_file $argv[1]
+function extract_github_repo -a ebuild_file
     set -l github_urls (grep -oE 'https?://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' $ebuild_file)
     for url in $github_urls
         set -l repo (echo $url | sed -E 's|.*github\.com/||' | sed -E 's|\.git$||' | cut -d/ -f1,2)
@@ -967,8 +962,7 @@ function expand_pn -a value pn
     end
 end
 
-function get_pypi_name
-    set -l ebuild_file $argv[1]
+function get_pypi_name -a ebuild_file
     set -l package_name (basename (dirname $ebuild_file))
     set -l pypi_pn (get_ebuild_var $ebuild_file PYPI_PN)
     if test -n "$pypi_pn"
@@ -1201,6 +1195,10 @@ end
 
 function _get_package_type -a atom
     set -l ebuild_file (_get_latest_ebuild $atom)
+    if test -z "$ebuild_file"
+      err "!! No ebuild file for $atom"
+      return 1
+    end
     if is_rpi_kernel_package $ebuild_file
         echo RPi-FW
     else if is_pypi_package $ebuild_file
@@ -1246,7 +1244,7 @@ function check_package -a atom depth
     end
     set -g CHECKED_PACKAGES $CHECKED_PACKAGES $atom
 
-    set -l ebuild_file (_get_latest_ebuild_for_atom $atom)
+    set -l ebuild_file (_get_latest_ebuild $atom)
     set -l indent (string repeat -n (math $depth \* 2) " ")
 
     if test -z "$ebuild_file"
