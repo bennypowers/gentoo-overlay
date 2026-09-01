@@ -9,11 +9,12 @@
 #   larry prepare --all                    Prepare every ebuild in the overlay
 #   larry import [--from <repo>] <cat/pkg>  Import ebuild from another overlay
 #   larry test [options] <atom>            Test-build an ebuild locally
-#   larry upstream [--fresh] [--verbose]    Check all packages for upstream version updates
+#   larry upstream [--fresh] [--verbose]    Check all packages for upstream version updates (skips prereleases)
 #
 # Examples:
 #   larry bump dev-util/fish-lsp 1.2.0
 #   larry bump --revision dev-util/fish-lsp
+#   larry bump --prereleases dev-util/my-tool 1.0.0-alpha1
 #   larry prepare dev-util/fish-lsp/fish-lsp-1.1.3.ebuild
 #   larry test dev-util/fish-lsp
 #   larry test --compile dev-util/javy-8.1.1
@@ -54,11 +55,12 @@ function print_usage
     echo "  larry import <cat/pkg>                 Import ebuild from another overlay (::guru, ::gentoo)"
     echo "  larry test [options] <atom>            Test-build locally (default: fetch+unpack)"
     echo "  larry test --emerge <atom>             Real emerge in a clean container (GPU passthrough)"
-    echo "  larry upstream [--fresh] [--verbose]    Check for upstream version updates"
+    echo "  larry upstream [--fresh] [--verbose]    Check for upstream version updates (skips prereleases)"
     echo ""
     echo "Examples:"
     echo "  larry bump dev-util/fish-lsp 1.2.0"
     echo "  larry bump --revision dev-util/fish-lsp"
+    echo "  larry bump --prereleases dev-util/my-tool 1.0.0-alpha1"
     echo "  larry prepare dev-util/vtsls/vtsls-0.3.0.ebuild"
     echo "  larry test --compile dev-util/javy-8.1.1"
     echo "  larry test --emerge dev-util/fish-lsp"
@@ -1026,15 +1028,19 @@ function extract_date_from_string
     return 1
 end
 
-function fetch_rpi_firmware_version
+function fetch_rpi_firmware_version -a prereleases
     set -l cache_file "$CACHE_DIR/rpi-firmware"
     if test -f $cache_file
         cat $cache_file
         return 0
     end
 
-    # Latest firmware release tag (format: 1.YYYYMMDD)
-    set -l fw_tag (gh release list -R raspberrypi/firmware --limit 1 \
+    # Latest firmware release tag (format: 1.YYYYMMDD), skip prereleases by default
+    set -l fw_list_args "--limit 1"
+    if test "$prereleases" = false
+        set fw_list_args "$fw_list_args --exclude-pre-releases"
+    end
+    set -l fw_tag (gh release list -R raspberrypi/firmware $fw_list_args \
         --json tagName -q '.[0].tagName' 2>/dev/null)
     if test -z "$fw_tag" -o "$fw_tag" = null
         return 1
@@ -1121,7 +1127,7 @@ function is_version_like
     string match -qr '^\d+[\.\d]*' $argv[1]
 end
 
-function fetch_github_version -a repo
+function fetch_github_version -a repo prereleases
     set -l cache_file "$CACHE_DIR/github-"(string replace -a / - $repo)
     if test -f $cache_file
         cat $cache_file
@@ -1131,16 +1137,32 @@ function fetch_github_version -a repo
     set -l release_ver ""
     set -l tag_ver ""
 
-    # 1. Fetch official latest release (handles draft/prerelease filtering automatically)
+    # 1. Fetch official latest release (handles draft filtering automatically)
+    #    prereleases=false means we reject prereleases (default)
     set -l raw_release (gh api repos/$repo/releases/latest --jq '.tag_name' 2>/dev/null)
     if test -n "$raw_release" -a "$raw_release" != null
         if not string match -q -r '^\{' "$raw_release"
-            set release_ver (strip_tag_prefix $raw_release)
+            if test "$prereleases" = false
+                set -l is_prerelease (gh api repos/$repo/releases/latest --jq '.prerelease' 2>/dev/null)
+                if test "$is_prerelease" = "true"
+                    set raw_release ""
+                end
+            end
         end
     end
+    if test -n "$raw_release" -a "$raw_release" != null
+        set release_ver (strip_tag_prefix $raw_release)
+    end
 
-    # 2. Fetch latest tag sorted by semver/date fallback
-    set -l raw_tag (gh api "repos/$repo/tags?per_page=100" --jq '.[].name' 2>/dev/null | head -n 1)
+    # 2. Fetch latest release tag (not just any tag) sorted by semver/date fallback
+    #    Using release list so we can filter prereleases
+    if test "$prereleases" = false
+        set -l raw_tag (gh release list -R $repo --limit 100 \
+            --exclude-pre-releases --json tagName -q '.[0].tagName' 2>/dev/null)
+    else
+        set -l raw_tag (gh release list -R $repo --limit 100 \
+            --json tagName -q '.[0].tagName' 2>/dev/null)
+    end
     if test -n "$raw_tag" -a "$raw_tag" != null
         if not string match -q -r '^\{' "$raw_tag"
             set tag_ver (strip_tag_prefix $raw_tag)
@@ -1262,12 +1284,12 @@ function _get_package_type -a atom
     end
 end
 
-function get_package_latest_version -a atom
+function get_package_latest_version -a atom prereleases
     set -l ebuild_file (get_latest_ebuild $atom)
     set -l type (_get_package_type $atom)
     switch $type
         case RPi-FW
-            echo (fetch_rpi_firmware_version)
+            echo (fetch_rpi_firmware_version $prereleases)
         case PyPI
             set -l pypi_name (get_pypi_name $ebuild_file)
             echo (fetch_pypi_version $pypi_name)
@@ -1276,14 +1298,14 @@ function get_package_latest_version -a atom
             echo (fetch_npm_version $npm_name)
         case GitHub
             set -l repo (extract_github_repo $ebuild_file)
-            echo (fetch_github_version $repo)
+            echo (fetch_github_version $repo $prereleases)
         case '*'
             echo unknown
     end
     return
 end
 
-function check_package -a atom depth
+function check_package -a atom depth prereleases
     set -l _splits (string split / $atom)
     set -l category $_splits[1]
     set -l package $_splits[2]
@@ -1301,7 +1323,7 @@ function check_package -a atom depth
         if has_live_ebuild $category $package
             set ebuild_file "$OVERLAY_DIR/$category/$package/$package-9999.ebuild"
             set -l current_ver "9999 (live)"
-            set -l latest_ver (get_package_latest_version $atom)
+            set -l latest_ver (get_package_latest_version $atom $prereleases)
             set -l status_label LIVE
             switch $type
                 case RPi-FW
@@ -1339,7 +1361,7 @@ function check_package -a atom depth
     switch $type
         case RPi-FW
             set src "RPi-FW:raspberrypi/firmware"
-            set latest_ver (fetch_rpi_firmware_version)
+            set latest_ver (fetch_rpi_firmware_version $prereleases)
             and set fetch_result 0
         case PyPI
             set -l pypi_name (get_pypi_name $ebuild_file)
@@ -1354,7 +1376,7 @@ function check_package -a atom depth
         case GitHub
             set -l repo (extract_github_repo $ebuild_file)
             set src "GitHub:$repo"
-            set latest_ver (fetch_github_version $repo)
+            set latest_ver (fetch_github_version $repo $prereleases)
             set fetch_result $status
     end
 
@@ -1394,7 +1416,7 @@ function check_package -a atom depth
         set -l deps (parse_upstream_dependencies $ebuild_file)
         for d in $deps
             if is_in_overlay $d
-                check_package $d (math $depth + 1)
+                check_package $d (math $depth + 1) $prereleases
             end
         end
     end
@@ -1420,6 +1442,7 @@ end
 function do_upstream
     set -l fresh false
     set -l verbose false
+    set -l prereleases false
     set -l target_packages
 
     for arg in $argv
@@ -1428,11 +1451,14 @@ function do_upstream
                 set fresh true
             case --verbose -v
                 set verbose true
+            case --prereleases
+                set prereleases true
             case --help -h
-                echo "Usage: larry upstream [--fresh] [--verbose] [cat/pkg ...]"
+                echo "Usage: larry upstream [--fresh] [--verbose] [--prereleases] [cat/pkg ...]"
                 echo "  --fresh, -f     Clear cache and fetch all versions fresh"
                 echo "  --verbose, -v   Show UP-TO-DATE packages (hidden by default)"
-                echo "  cat/pkg         Only check specified package(s) (e.g., x11-misc/sddm-silent-theme)"
+                echo "  --prereleases   Include GitHub prereleases in checks (default: skip)"
+                echo "  cat/pkg         Only check specified package(s)"
                 return 0
             case '*'
                 set -a target_packages $arg
@@ -1464,7 +1490,7 @@ function do_upstream
     begin
         printf 'Package\tCurrent\tLatest\tStatus\tSource\n'
         for cat_pkg in $packages
-            check_package $cat_pkg 0
+            check_package $cat_pkg 0 $prereleases
         end
     end | if not $verbose
         grep -v UP-TO-DATE
@@ -1639,15 +1665,18 @@ switch $subcommand
 
     case bump
         set -l mode version
+        set -l prereleases false
         set -l atom ""
         set -l new_version ""
         for arg in $rest
             switch $arg
                 case --help -h
-                    echo "Usage: larry bump [--revision] <atom> [<version>]"
+                    echo "Usage: larry bump [--revision] [--prereleases] <atom> [<version>]"
                     exit 0
                 case --revision -r
                     set mode revision
+                case --prereleases
+                    set prereleases true
                 case '-*'
                     err "Unknown option: $arg"
                     exit 1
@@ -1675,7 +1704,7 @@ switch $subcommand
                 do_bump $atom $pv_for_rev
             case version
                 if test -z "$new_version"
-                    set new_version (get_package_latest_version $atom)
+                    set new_version (get_package_latest_version $atom $prereleases)
                 end
                 do_bump $atom $new_version
         end
