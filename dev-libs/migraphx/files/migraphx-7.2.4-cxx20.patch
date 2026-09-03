@@ -1,0 +1,79 @@
+Gentoo's abseil-cpp-20260107.1 exports a C++20 usage requirement. MIGraphX
+appends a raw C++17 compiler option, which overrides the standard selected
+by CMake for targets consuming Abseil through protobuf and causes generated
+protobuf sources to fail when they include Abseil headers.
+
+Declare MIGraphX's C++17 baseline through CMake's standard properties. This
+preserves C++17 for the rest of MIGraphX while allowing CMake to raise the
+protobuf targets to the C++20 standard required by Abseil. Propagate
+protobuf's usage requirements to the ONNX and TensorFlow frontends, whose
+sources include the generated protobuf headers. Accept the moved accumulator
+used by C++20's std::accumulate implementation in the grid-sample parser.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -142,9 +142,6 @@
+ 
+-set(CMAKE_CXX_STANDARD_DEFAULT "")
+-if(MSVC)
+-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/std:c++17>)
+-else()
+-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
+-endif()
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++set(CMAKE_CXX_EXTENSIONS OFF)
+ 
+ include(EnableCompilerWarnings)
+
+--- a/src/onnx/CMakeLists.txt
++++ b/src/onnx/CMakeLists.txt
+@@ -28,7 +28,7 @@
+     protobuf_generate(TARGET onnx-proto PROTOS onnx.proto)
+     target_include_directories(onnx-proto SYSTEM PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${PROTOBUF_INCLUDE_DIR})
+     target_link_libraries(onnx-proto PRIVATE ${PROTOBUF_LIBRARY})
+-    target_link_libraries(onnx-proto PRIVATE protobuf::libprotobuf)
++    target_link_libraries(onnx-proto PUBLIC protobuf::libprotobuf)
+ else()
+     find_package(Protobuf REQUIRED)
+     protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS onnx.proto)
+--- a/src/tf/CMakeLists.txt
++++ b/src/tf/CMakeLists.txt
+@@ -41,7 +41,7 @@
+     )
+     target_include_directories(tf-proto SYSTEM PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${PROTOBUF_INCLUDE_DIR})
+     target_link_libraries(tf-proto PRIVATE ${PROTOBUF_LIBRARY})
+-    target_link_libraries(tf-proto PRIVATE protobuf::libprotobuf)
++    target_link_libraries(tf-proto PUBLIC protobuf::libprotobuf)
+ else()
+     find_package(Protobuf REQUIRED)
+     protobuf_generate_cpp(
+--- a/src/onnx/parse_gridsample.cpp
++++ b/src/onnx/parse_gridsample.cpp
+@@ -168,7 +168,7 @@ struct grid_sampler
+         return std::accumulate(std::next(instructions.begin()),
+                                instructions.end(),
+                                instructions.front(),
+-                               [&info](auto& ret, auto& ins) {
++                               [&info](auto ret, auto& ins) {
+                                    return info.add_instruction(
+                                        make_op("concat", {{"axis", 0}}), ret, ins);
+                                });
+@@ -181,7 +181,7 @@ struct grid_sampler
+         return std::accumulate(std::next(instructions.begin()),
+                                instructions.end(),
+                                instructions.front(),
+-                               [&info, &dim](auto& ret, auto& ins) {
++                               [&info, &dim](auto ret, auto& ins) {
+                                    return info.add_instruction(
+                                        make_op("concat", {{"axis", dim}}), ret, ins);
+                                });
+@@ -530,7 +530,7 @@ struct cubic_sampler : grid_sampler
+         auto weights_t = std::accumulate(std::next(corner_weights.begin()),
+                                          corner_weights.end(),
+                                          corner_weights.front(),
+-                                         [&info](auto& acc, auto& ins) {
++                                         [&info](auto acc, auto& ins) {
+                                              return info.add_instruction(
+                                                  make_op("concat", {{"axis", 1}}), acc, ins);
+                                          });
