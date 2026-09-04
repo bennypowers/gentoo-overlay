@@ -122,8 +122,6 @@ function detect_type -a ebuild_path
         echo cargo
     else if grep -q 'inherit.*go-module' $ebuild_path
         echo go
-    else if is_rpi_kernel_package $ebuild_path
-        echo rpi-kernel
     else
         echo generic
     end
@@ -897,6 +895,12 @@ function find_latest_versioned_ebuild -a category package
         echo $ebuilds
         return 0
     end
+    # Fall back to live ebuild if that's all that exists
+    set -l live (find $package_dir -name "*-9999.ebuild" 2>/dev/null | head -1)
+    if test -n "$live"
+        echo $live
+        return 0
+    end
     return 1
 end
 
@@ -916,11 +920,6 @@ end
 
 function is_npm_package -a ebuild_file
     grep -q 'mirror://npm/' $ebuild_file
-end
-
-function is_rpi_kernel_package -a ebuild_file
-    grep -q "inherit.*kernel-build" $ebuild_file
-    and grep -q raspberrypi/linux $ebuild_file
 end
 
 function get_npm_name -a ebuild_file
@@ -976,6 +975,37 @@ function extract_github_repo -a ebuild_file
     return 1
 end
 
+function extract_gitlab_repo -a ebuild_file
+    set -l gitlab_urls (grep -oE 'https?://gitlab\.[A-Za-z0-9.-]+/[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)+' $ebuild_file | head -1)
+    if test -z "$gitlab_urls"
+        return 1
+    end
+    set -l host (echo $gitlab_urls | sed -E 's|^(https?://)||' | cut -d/ -f1)
+    set -l full_path (echo $gitlab_urls | sed -E 's|.*gitlab\.[A-Za-z0-9.-]+/||' | sed -E 's|\.git$||')
+    if string match -qr '\$\{' "$full_path"
+        return 1
+    end
+    if test -n "$full_path"
+        echo "$host:$full_path"
+        return 0
+    end
+    return 1
+end
+
+function extract_gitea_repo -a ebuild_file
+    # Matches codeberg.org and other Gitea instances
+    set -l codeberg_urls (grep -oE 'https?://codeberg\.org/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+' $ebuild_file | head -1)
+    if test -z "$codeberg_urls"
+        return 1
+    end
+    set -l repo (echo $codeberg_urls | sed -E 's|.*codeberg\.org/||' | sed -E 's|\.git$||' | cut -d/ -f1,2)
+    if string match -qr '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' "$repo"
+        echo $repo
+        return 0
+    end
+    return 1
+end
+
 function expand_pn -a value pn
     switch $value
         case '${PN//-/_}' '$PN//-/_'
@@ -1026,47 +1056,6 @@ function extract_date_from_string
         return 0
     end
     return 1
-end
-
-function fetch_rpi_firmware_version -a prereleases
-    set -l cache_file "$CACHE_DIR/rpi-firmware"
-    if test -f $cache_file
-        cat $cache_file
-        return 0
-    end
-
-    # Latest firmware release tag (format: 1.YYYYMMDD), skip prereleases by default
-    set -l fw_list_args "--limit 1"
-    if test "$prereleases" = false
-        set fw_list_args "$fw_list_args --exclude-pre-releases"
-    end
-    set -l fw_tag (gh release list -R raspberrypi/firmware $fw_list_args \
-        --json tagName -q '.[0].tagName' 2>/dev/null)
-    if test -z "$fw_tag" -o "$fw_tag" = null
-        return 1
-    end
-
-    set -l fw_date (string replace '1.' '' $fw_tag)
-
-    # Kernel commit from firmware release
-    set -l commit (curl -sfL \
-        "https://raw.githubusercontent.com/raspberrypi/firmware/$fw_tag/extra/git_hash" \
-        2>/dev/null | string trim)
-    if test -z "$commit"
-        return 1
-    end
-
-    # Kernel version from that commit's Makefile
-    set -l kver (curl -sfL \
-        "https://raw.githubusercontent.com/raspberrypi/linux/$commit/Makefile" 2>/dev/null \
-        | awk '/^VERSION/{v=$3} /^PATCHLEVEL/{p=$3} /^SUBLEVEL/{s=$3; print v"."p"."s; exit}')
-    if test -z "$kver"
-        return 1
-    end
-
-    set -l full_ver "$kver"_p"$fw_date"
-    echo $full_ver | tee $cache_file
-    return 0
 end
 
 function fetch_github_latest_tag_by_date -a repo
@@ -1144,7 +1133,7 @@ function fetch_github_version -a repo prereleases
         if not string match -q -r '^\{' "$raw_release"
             if test "$prereleases" = false
                 set -l is_prerelease (gh api repos/$repo/releases/latest --jq '.prerelease' 2>/dev/null)
-                if test "$is_prerelease" = "true"
+                if test "$is_prerelease" = true
                     set raw_release ""
                 end
             end
@@ -1201,6 +1190,54 @@ function fetch_github_version -a repo prereleases
         return 2
     end
 
+    return 1
+end
+
+function fetch_gitlab_version -a repo prereleases
+    set -l cache_file "$CACHE_DIR/gitlab-"(string replace -a / - $repo | string replace -a : -)
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
+
+    # repo is host:path (e.g., gitlab.gnome.org:GNOME/geary)
+    set -l host (string split : $repo)[1]
+    set -l path (string split : $repo)[2]
+    set -l encoded_path (string replace -a / '%2F' $path)
+    set -l tags (curl -sf "https://$host/api/v4/projects/$encoded_path/repository/tags" \
+        | jq -r '.[0].name' 2>/dev/null)
+    if test -z "$tags" -o "$tags" = null
+        return 1
+    end
+
+    set -l tag_ver (strip_tag_prefix $tags)
+    if is_version_like $tag_ver
+        echo $tag_ver | tee $cache_file
+        return 0
+    end
+    return 1
+end
+
+function fetch_gitea_version -a repo prereleases
+    set -l cache_file "$CACHE_DIR/codeberg-"(string replace -a / - $repo)
+    if test -f $cache_file
+        cat $cache_file
+        return 0
+    end
+
+    # Codeberg uses Gitea API at https://codeberg.org/api/v1/repos/{owner}/{repo}
+    # Tags: /api/v1/repos/{owner}/{repo}/tags
+    # Releases: /api/v1/repos/{owner}/{repo}/releases
+    set -l releases (curl -sf "https://codeberg.org/api/v1/repos/$repo/releases" 2>/dev/null | jq -r '.[0].tag_name' 2>/dev/null)
+    if test -z "$releases" -o "$releases" = null
+        return 1
+    end
+
+    set -l tag_ver (strip_tag_prefix $releases)
+    if is_version_like $tag_ver
+        echo $tag_ver | tee $cache_file
+        return 0
+    end
     return 1
 end
 
@@ -1271,25 +1308,33 @@ function _get_package_type -a atom
         err "!! No ebuild file for $atom"
         return 1
     end
-    if is_rpi_kernel_package $ebuild_file
-        echo RPi-FW
-    else if is_pypi_package $ebuild_file
+    if is_pypi_package $ebuild_file
         echo PyPI
     else if is_npm_package $ebuild_file
         echo npm
     else if set -l r (extract_github_repo $ebuild_file)
         echo GitHub
+    else if set -l r (extract_gitlab_repo $ebuild_file)
+        echo GitLab
+    else if set -l r (extract_gitea_repo $ebuild_file)
+        echo Codeberg
     else
         echo unknown
     end
+end
+
+function should_skip_package -a category package
+    # Skip acct-group and acct-user packages (no upstream versions to check)
+    if string match -qr '^acct-(group|user)/' $category/$package
+        return 0
+    end
+    return 1
 end
 
 function get_package_latest_version -a atom prereleases
     set -l ebuild_file (get_latest_ebuild $atom)
     set -l type (_get_package_type $atom)
     switch $type
-        case RPi-FW
-            echo (fetch_rpi_firmware_version $prereleases)
         case PyPI
             set -l pypi_name (get_pypi_name $ebuild_file)
             echo (fetch_pypi_version $pypi_name)
@@ -1299,13 +1344,19 @@ function get_package_latest_version -a atom prereleases
         case GitHub
             set -l repo (extract_github_repo $ebuild_file)
             echo (fetch_github_version $repo $prereleases)
+        case GitLab
+            set -l repo (extract_gitlab_repo $ebuild_file)
+            echo (fetch_gitlab_version $repo $prereleases)
+        case Codeberg
+            set -l repo (extract_gitea_repo $ebuild_file)
+            echo (fetch_gitea_version $repo $prereleases)
         case '*'
             echo unknown
     end
     return
 end
 
-function check_package -a atom depth prereleases
+function check_package -a atom depth prereleases verbose
     set -l _splits (string split / $atom)
     set -l category $_splits[1]
     set -l package $_splits[2]
@@ -1316,38 +1367,31 @@ function check_package -a atom depth prereleases
     end
     set -g CHECKED_PACKAGES $CHECKED_PACKAGES $atom
 
+    # Skip acct-group and acct-user (nothing to bump)
+    if should_skip_package $category $package
+        return 0
+    end
+
     set -l ebuild_file (get_latest_ebuild $atom)
+    set -l package_dir "$OVERLAY_DIR/$category/$package"
     set -l indent (string repeat -n (math $depth \* 2) " ")
 
-    if test -z "$ebuild_file"
-        if has_live_ebuild $category $package
-            set ebuild_file "$OVERLAY_DIR/$category/$package/$package-9999.ebuild"
-            set -l current_ver "9999 (live)"
-            set -l latest_ver (get_package_latest_version $atom $prereleases)
-            set -l status_label LIVE
-            switch $type
-                case RPi-FW
-                    if test -n "$latest_ver"
-                        set status_label HAS-RELEASE
-                    end
-                case PyPI
-                    set -l pypi_name (get_pypi_name $ebuild_file)
-                    if test -n "$latest_ver"
-                        set status_label HAS-RELEASE
-                    end
-                case npm
-                    set -l npm_name (get_npm_name $ebuild_file)
-                    if test -n "$latest_ver"
-                        set status_label HAS-RELEASE
-                    end
-                case GitHub
-                    if test -n "$latest_ver"
-                        set status_label HAS-RELEASE
-                    end
+    # If the only ebuild is live (9999), elide unless verbose
+    if string match -q '*-9999.ebuild' -- $ebuild_file
+        # Check if there are any versioned ebuilds alongside it
+        set -l versioned (find $package_dir -name '*.ebuild' ! -name '*-9999.ebuild' 2>/dev/null | head -1)
+        if test -z "$versioned"
+            if test "$verbose" = "true"
+                set -l latest_ver (get_package_latest_version $atom $prereleases)
+                set -l status_label LIVE
+                if test -n "$latest_ver"
+                    set status_label HAS-RELEASE
+                end
+                printf '%s%s\t%s\t%s\t%s\t%s\n' "$indent" "$atom" "9999 (live)" "$latest_ver" "$status_label" "$type"
             end
-            printf '%s%s\t%s\t%s\t%s\t%s\n' "$indent" "$atom" "$current_ver" "$latest_ver" "$status_label" "$type"
+            return 0
         end
-        return 0
+        # Has both versioned and live; get_latest_ebuild already returned the versioned one
     end
 
     set -l current_ver (get_version_from_filename $ebuild_file)
@@ -1359,10 +1403,6 @@ function check_package -a atom depth prereleases
     set -l fetch_result 1
 
     switch $type
-        case RPi-FW
-            set src "RPi-FW:raspberrypi/firmware"
-            set latest_ver (fetch_rpi_firmware_version $prereleases)
-            and set fetch_result 0
         case PyPI
             set -l pypi_name (get_pypi_name $ebuild_file)
             set src "PyPI:$pypi_name"
@@ -1378,6 +1418,16 @@ function check_package -a atom depth prereleases
             set src "GitHub:$repo"
             set latest_ver (fetch_github_version $repo $prereleases)
             set fetch_result $status
+        case GitLab
+            set -l repo (extract_gitlab_repo $ebuild_file)
+            set src "GitLab:$repo"
+            set latest_ver (fetch_gitlab_version $repo $prereleases)
+            set fetch_result $status
+        case Codeberg
+            set -l repo (extract_gitea_repo $ebuild_file)
+            set src "Codeberg:$repo"
+            set latest_ver (fetch_gitea_version $repo $prereleases)
+            set fetch_result $status
     end
 
     if test $fetch_result -eq 0 -a -n "$latest_ver" -a "$latest_ver" != unknown
@@ -1391,17 +1441,30 @@ function check_package -a atom depth prereleases
                 set status_label AHEAD
         end
     else if test $fetch_result -eq 2 -a -n "$GITHUB_TAG_INFO"
-        set -l tag_name (string split '|' $GITHUB_TAG_INFO)[1]
+        set -l raw_tag_name (string split '|' $GITHUB_TAG_INFO)[1]
+        set -l tag_name (string replace -r '^[vV](?=\d)' '' $raw_tag_name)
         set -l tag_date (string split '|' $GITHUB_TAG_INFO)[2]
         set -l current_date (extract_date_from_string $current_ver)
         set latest_ver "$tag_name"
-        if test -n "$current_date" -a -n "$tag_date"
-            if test "$tag_date" -gt "$current_date"
-                set status_label NEWER-TAG
-            else if test "$tag_date" = "$current_date"
-                set status_label UP-TO-DATE
+        if is_version_like "$current_ver" -a is_version_like "$tag_name"
+            if test -n "$current_date" -a -n "$tag_date"
+                if test "$tag_date" -gt "$current_date"
+                    set status_label NEWER-TAG
+                else if test "$tag_date" = "$current_date"
+                    set status_label UP-TO-DATE
+                else
+                    set status_label AHEAD
+                end
             else
-                set status_label AHEAD
+                set -l comparison (compare_versions $current_ver $tag_name)
+                switch $comparison
+                    case outdated
+                        set status_label OUTDATED
+                    case current
+                        set status_label UP-TO-DATE
+                    case newer
+                        set status_label AHEAD
+                end
             end
         else
             set status_label CHECK-TAG
@@ -1416,7 +1479,7 @@ function check_package -a atom depth prereleases
         set -l deps (parse_upstream_dependencies $ebuild_file)
         for d in $deps
             if is_in_overlay $d
-                check_package $d (math $depth + 1) $prereleases
+                check_package $d (math $depth + 1) $prereleases $verbose
             end
         end
     end
@@ -1435,8 +1498,7 @@ function colorize_upstream
         -e 's/UNKNOWN/\x1b[90mUNKNOWN\x1b[0m/' \
         -e 's|GitHub:([^ ]+)|\x1b[34m\x1b]8;;https://github.com/\1\x07GitHub:\1\x1b]8;;\x07\x1b[0m|' \
         -e 's|PyPI:([^ ]+)|\x1b[34m\x1b]8;;https://pypi.org/project/\1/\x07PyPI:\1\x1b]8;;\x07\x1b[0m|' \
-        -e 's|npm:([^ ]+)|\x1b[34m\x1b]8;;https://www.npmjs.com/package/\1\x07npm:\1\x1b]8;;\x07\x1b[0m|' \
-        -e 's|RPi-FW:([^ ]+)|\x1b[34m\x1b]8;;https://github.com/\1/releases\x07RPi-FW:\1\x1b]8;;\x07\x1b[0m|'
+        -e 's|npm:([^ ]+)|\x1b[34m\x1b]8;;https://www.npmjs.com/package/\1\x07npm:\1\x1b]8;;\x07\x1b[0m|'
 end
 
 function do_upstream
@@ -1490,7 +1552,7 @@ function do_upstream
     begin
         printf 'Package\tCurrent\tLatest\tStatus\tSource\n'
         for cat_pkg in $packages
-            check_package $cat_pkg 0 $prereleases
+            check_package $cat_pkg 0 $prereleases $verbose
         end
     end | if not $verbose
         grep -v UP-TO-DATE
