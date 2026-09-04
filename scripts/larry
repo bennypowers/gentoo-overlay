@@ -673,9 +673,21 @@ function next_revision -a pv
     end
 end
 
-function do_bump -a atom new_pv
+function do_bump -a atom
     parse_atom $atom; or return 1
     find_latest_ebuild; or return 1
+
+    set -l new_pv
+    if test (count $argv) -ge 2
+        set new_pv $argv[2]
+    else
+        set -l ver (get_package_latest_version $atom false)
+        if test -z "$ver"
+            err "Cannot determine latest version for $atom"
+            return 1
+        end
+        set new_pv $ver
+    end
 
     set -l new_ebuild "$_atom_pkg_dir/$_atom_pn-$new_pv.ebuild"
     if test -f "$new_ebuild"
@@ -1107,6 +1119,7 @@ end
 
 function strip_tag_prefix -a tag
     set tag (string replace --regex -- '^(bun|rocm|release)-' '' $tag)
+    set tag (string replace --regex -- '\^\{.*\}' '' $tag)
     set tag (string replace --regex -- '^[vV]\.' '' $tag)
     set tag (string replace --regex -- '^[vV](?=\d)' '' $tag)
     echo $tag
@@ -1160,7 +1173,7 @@ function fetch_github_version -a repo prereleases
 
     set -l ver ""
 
-    if test -n "$release_ver" -a -n "$tag_ver"
+    if test -n "$release_ver" -o -n "$tag_ver"
         if is_version_like $release_ver; and is_version_like $tag_ver
             set -l newer (compare_versions $release_ver $tag_ver)
             if test "$newer" = outdated
@@ -1177,6 +1190,19 @@ function fetch_github_version -a repo prereleases
         set ver $release_ver
     else if test -n "$tag_ver"
         set ver $tag_ver
+    end
+
+    if test -n "$ver"; and is_version_like $ver
+        echo $ver | tee $cache_file
+        return 0
+    end
+
+    # Fallback: use git ls-remote to find latest version-like tag
+    set -l remote_tags (git ls-remote --tags "https://github.com/$repo.git" 2>/dev/null \
+        | awk '{print $2}' | sed 's|^refs/tags/||' \
+        | grep -E '^[vV]?[0-9]' | sort -V | tail -1)
+    if test -n "$remote_tags"
+        set ver (strip_tag_prefix $remote_tags)
     end
 
     if test -n "$ver"; and is_version_like $ver
