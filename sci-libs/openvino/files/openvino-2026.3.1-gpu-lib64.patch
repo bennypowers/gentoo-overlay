@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: bennyp <bennyp@example.com>
+Date: Thu, 01 Jan 1970 00:00:00 +0000
+Subject: [PATCH] Use CMAKE_INSTALL_LIBDIR for GPU onednn path (Gentoo lib64)
+
+On Gentoo with LIB_SUFFIX=64, GNUInstallDirs redirects "lib" to "lib64",
+but upstream hardcodes "lib/" in ONEDNN_GPU_LIB_PATH, causing linker
+to fail with "No such file or directory" for libopenvino_onednn_gpu.a.
+
+---
+ src/plugins/intel_gpu/thirdparty/CMakeLists.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/intel_gpu/thirdparty/CMakeLists.txt b/src/plugins/intel_gpu/thirdparty/CMakeLists.txt
+index 1234567..abcdefg 100644
+--- a/src/plugins/intel_gpu/thirdparty/CMakeLists.txt
++++ b/src/plugins/intel_gpu/thirdparty/CMakeLists.txt
+@@ -127,7 +127,7 @@ if(ENABLE_INTEL_GPU)
+         message(STATUS "Building oneDNN GPU library")
+ 
+         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+-        set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
++        set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
+         set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
+ 
+         ExternalProject_Add(onednn_gpu_build
+-- 
+2.49.0
