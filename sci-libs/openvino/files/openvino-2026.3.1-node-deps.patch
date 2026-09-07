@@ -1,0 +1,26 @@
+--- a/src/bindings/js/node/CMakeLists.txt
++++ b/src/bindings/js/node/CMakeLists.txt
+@@ -29,21 +29,8 @@ project(ov_node_addon)
+ set(CMAKE_CXX_STANDARD 17)
+ add_definitions(-DNAPI_VERSION=8)
+ 
+-include(FetchContent)
+-
+-FetchContent_Declare(
+-    node-api-headers
+-    URL      https://github.com/nodejs/node-api-headers/archive/refs/tags/v1.9.0.tar.gz
+-    URL_HASH SHA256=071f773bd10479f865f6828b86fe8232d63e255290d9bbb7a0ec487c57310231
+-)
+-FetchContent_MakeAvailable(node-api-headers)
+-
+-FetchContent_Declare(
+-    node-addon-api
+-    URL      https://github.com/nodejs/node-addon-api/archive/refs/tags/v8.9.0.tar.gz
+-    URL_HASH SHA256=d3c35d47f57461a49826349928da4913cb467d81288549973b7f9335f5d4c001
+-)
+-FetchContent_MakeAvailable(node-addon-api)
++set(node-api-headers_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node-api-headers")
++set(node-addon-api_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/node-addon-api")
+ 
+ add_library(${PROJECT_NAME} SHARED
+     ${CMAKE_CURRENT_SOURCE_DIR}/src/node_output.cpp
