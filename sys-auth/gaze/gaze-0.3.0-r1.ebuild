@@ -35,6 +35,8 @@ RDEPEND="
 	app-crypt/tpm2-tss:=
 	dev-libs/openssl:=
 	media-libs/gst-plugins-base:1.0
+	media-libs/gst-plugins-good:1.0
+	media-plugins/gst-plugins-v4l2
 	media-libs/gstreamer:1.0
 	media-libs/libv4l
 	media-video/pipewire[gstreamer]

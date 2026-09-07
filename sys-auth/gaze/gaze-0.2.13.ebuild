@@ -37,9 +37,11 @@ RDEPEND="
 	media-libs/gst-plugins-base:1.0
 	media-libs/gstreamer:1.0
 	media-libs/libv4l
+	media-video/pipewire[gstreamer]
 	media-libs/opencv:=
 	sci-libs/onnxruntime:=
 	sys-libs/pam
+	openvino? ( sci-libs/openvino )
 	gui? (
 		gui-libs/gtk:4
 		gui-libs/libadwaita:1
