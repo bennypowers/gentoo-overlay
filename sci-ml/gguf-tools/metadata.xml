@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		GGUF Tools is a library and set of utilities for manipulating GGUF files,
+		the model format used by llama.cpp. It provides tools for inspecting,
+		comparing, and analyzing GGUF model files including tensor inspection,
+		model comparison, and more.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">antirez/gguf-tools</remote-id>
+	</upstream>
+</pkgmetadata>
