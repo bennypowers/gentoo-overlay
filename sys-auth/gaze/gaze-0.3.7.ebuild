@@ -511,6 +511,19 @@ src_prepare() {
 	if ! use gnome; then
 		sed -i 's| /etc/dconf/db$||' packaging/config/gazed.service || die
 	fi
+
+	# ort's workspace-level features include openvino/vitis which require
+	# optional system libs. Gate them behind the openvino USE flag.
+	if use openvino; then
+		sed -i 's|ort = {.*}|ort = { workspace = true, features = ["openvino", "vitis"] }|' \
+			crates/gazed/Cargo.toml || die
+	else
+		sed -i 's|ort = { workspace = true }|ort = { workspace = true }|' \
+			crates/gazed/Cargo.toml
+		# Remove openvino and vitis from workspace ort deps
+		sed -i 's|default-features = false, features = \[.*\]|default-features = false, features = ["std", "ndarray", "tracing", "load-dynamic", "api-21"]|' \
+			Cargo.toml || die
+	fi
 }
 
 src_configure() {
@@ -521,22 +534,15 @@ src_compile() {
 	export ORT_LIB_LOCATION="${ESYSROOT}/usr/$(get_libdir)"
 	export ORT_PREFER_DYNAMIC_LINK=1
 
-	# Daemon must be built separately from client binaries. The `gaze` crate
-	# enables gaze-core's `detection` feature (which pulls in ort/ONNX Runtime).
-	# Client binaries use gaze-core with default-features=false to avoid linking
-	# ONNX Runtime, whose static constructors require AVX2 and would crash on
-	# older CPUs.
-	local target_args=( -p gaze )
-	use openvino && target_args+=( --features openvino )
+	# Build gazed daemon (gaze-vision with detection feature pulls in ort/ONNX Runtime)
+	# and client binaries. The `gazed` crate unconditionally uses gaze-vision/detection
+	# and ort; client binaries use gaze-core without ort to avoid AVX2 requirements.
+	local target_args=( -p gazed )
 	set -- "${CARGO}" build $(usex debug "" --release) ${ECARGO_ARGS[@]} "${target_args[@]}"
 	einfo "${@}"
 	cargo_env "${@}" || die "daemon build failed"
 
 	target_args=( -p gaze-cli -p pam-gaze -p pam-gaze-grosshack )
-	if use openvino; then
-		target_args+=( --features gaze-cli/openvino )
-		use gui && target_args+=( --features gaze-gui/openvino )
-	fi
 	if use gui; then
 		target_args+=( -p gaze-gui )
 	fi
