@@ -1,0 +1,13 @@
+diff --git a/src/plugins/intel_gpu/thirdparty/CMakeLists.txt b/src/plugins/intel_gpu/thirdparty/CMakeLists.txt
+index 1234567..abcdefg 100644
+--- a/src/plugins/intel_gpu/thirdparty/CMakeLists.txt
++++ b/src/plugins/intel_gpu/thirdparty/CMakeLists.txt
+@@ -127,7 +127,7 @@ if(ENABLE_INTEL_GPU)
+         message(STATUS "Building oneDNN GPU library")
+ 
+         set(onednn_gpu_lib "${CMAKE_STATIC_LIBRARY_PREFIX}${DNNL_GPU_LIBRARY_NAME}${CMAKE_STATIC_LIBRARY_SUFFIX}")
+-        set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/lib/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
++        set(ONEDNN_GPU_LIB_PATH ${ONEDNN_INSTALL_DIR}/${CMAKE_INSTALL_LIBDIR}/${onednn_gpu_lib} CACHE FILEPATH "Path to oneDNN GPU library")
+         set(ONEDNN_GPU_DIR ${CMAKE_CURRENT_SOURCE_DIR}/onednn_gpu CACHE FILEPATH "Path to oneDNN GPU repository")
+ 
+         ExternalProject_Add(onednn_gpu_build
