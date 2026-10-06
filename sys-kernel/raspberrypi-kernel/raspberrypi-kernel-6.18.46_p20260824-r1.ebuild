@@ -3,7 +3,7 @@
 
 EAPI=8
 
-inherit mount-boot kernel-build
+inherit mount-boot kernel-build eselect-kernel
 
 COMMIT="16f1da3c4e94437449d6aa151589ca0ad4b388bb"
 
@@ -70,6 +70,7 @@ pkg_pretend() {
 pkg_postinst() {
 	kernel-build_pkg_postinst
 	mount-boot_pkg_postinst
+	eselect-kernel_pkg_postinst
 
 	local boot_dir="${EROOT}/boot/rpi-${KV_FULL}"
 	local active_link="${EROOT}/boot/active"
@@ -124,6 +125,7 @@ pkg_postinst() {
 
 pkg_postrm() {
 	mount-boot_pkg_postrm
+	eselect-kernel_pkg_postrm
 
 	local boot_dir="${EROOT}/boot/rpi-${KV_FULL}"
 	local active_link="${EROOT}/boot/active"
