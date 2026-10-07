@@ -6,9 +6,9 @@ EAPI=8
 CRATES="
 	adler2@2.0.1
 	aead@0.6.1
-	aes-gcm@0.11.0
-	aes@0.9.2
-	aho-corasick@1.1.4
+	aes-gcm@0.11.1
+	aes@0.9.3
+	aho-corasick@1.1.5
 	allocator-api2@0.2.21
 	anstream@1.0.0
 	anstyle-parse@1.0.0
@@ -23,78 +23,72 @@ CRATES="
 	async-io@2.6.0
 	async-lock@3.4.2
 	async-process@2.5.0
-	async-recursion@1.1.1
+	async-recursion@1.2.0
 	async-signal@0.2.14
 	async-task@4.7.1
-	async-trait@0.1.91
+	async-trait@0.1.92
 	atomic-waker@1.1.2
 	atomic@0.6.1
 	atomic_refcell@0.1.14
 	autocfg@1.5.1
 	base64@0.22.1
-	base64ct@1.8.3
+	base64@0.23.1
 	bit-set@0.5.3
 	bit-vec@0.6.3
 	bitfield-macros@0.19.5
 	bitfield@0.19.5
 	bitflags@1.3.2
-	bitflags@2.13.1
+	bitflags@2.13.2
 	block-buffer@0.10.4
 	block-buffer@0.12.1
-	blocking@1.6.2
+	blocking@1.7.0
 	bumpalo@3.20.3
 	by_address@1.2.1
 	bytemuck@1.25.2
 	byteorder-lite@0.1.0
-	byteorder@1.5.0
 	bytes@1.12.1
 	bzip2@0.6.1
-	cairo-rs@0.22.0
-	cairo-sys-rs@0.22.0
+	cairo-rs@0.22.9
+	cairo-sys-rs@0.22.9
 	castaway@0.2.4
-	cc@1.4.0
-	cfg-expr@0.20.8
-	cfg-if@1.0.4
+	cc@1.6.0
+	cfg-expr@0.20.10
+	cfg-if@1.0.5
 	cfg_aliases@0.2.2
 	cipher@0.5.2
-	clang-sys@1.8.1
-	clang@2.0.0
-	clap@4.6.5
-	clap_builder@4.6.5
-	clap_complete@4.6.8
-	clap_derive@4.6.4
-	clap_lex@1.1.0
+	clang-sys@1.9.1
+	clang@2.1.0
+	clap@4.6.7
+	clap_builder@4.6.7
+	clap_complete@4.6.11
+	clap_derive@4.6.7
+	clap_lex@1.1.1
 	cmov@0.5.4
 	colorchoice@1.0.5
 	compact_str@0.9.1
 	concurrent-queue@2.5.0
-	console@0.16.4
+	console@0.16.6
 	const-oid@0.10.2
 	constant_time_eq@0.4.2
 	convert_case@0.10.0
-	core-foundation-sys@0.8.7
-	core-foundation@0.10.1
 	cpubits@0.1.1
 	cpufeatures@0.2.17
-	cpufeatures@0.3.0
-	crc32fast@1.5.0
+	cpufeatures@0.3.1
+	crc32fast@1.5.2
 	critical-section@1.2.0
-	crossbeam-deque@0.8.7
-	crossbeam-epoch@0.9.20
-	crossbeam-utils@0.8.22
+	crossbeam-utils@0.8.23
 	crossterm@0.29.0
 	crossterm_winapi@0.9.1
 	crypto-common@0.1.7
 	crypto-common@0.2.2
 	csscolorparser@0.6.2
 	ctr@0.10.1
-	ctutils@0.4.2
-	darling@0.23.0
-	darling_core@0.23.0
-	darling_macro@0.23.0
+	ctutils@0.4.3
+	darling@0.24.1
+	darling_core@0.24.1
+	darling_macro@0.24.1
 	deflate64@0.1.12
 	deltae@0.3.2
-	der@0.8.1
 	deranged@0.5.8
 	derive_more-impl@2.1.1
 	derive_more@2.1.1
@@ -103,7 +97,7 @@ CRATES="
 	digest@0.11.3
 	document-features@0.2.12
 	dunce@1.0.5
-	either@1.17.0
+	either@1.18.0
 	encode_unicode@1.0.0
 	endi@1.1.1
 	enumflags2@0.7.12
@@ -112,107 +106,103 @@ CRATES="
 	errno@0.3.14
 	euclid@0.22.14
 	event-listener-strategy@0.5.4
-	event-listener@5.4.1
+	event-listener@5.4.2
 	fancy-regex@0.11.0
-	fast-srgb8@1.0.0
 	fastrand@2.5.0
 	field-offset@0.3.6
 	filedescriptor@0.8.3
-	find-msvc-tools@0.1.9
-	finl_unicode@1.4.0
+	find-msvc-tools@0.1.14
+	finl_unicode@1.5.0
 	fixedbitset@0.4.2
-	flate2@1.1.9
+	flate2@1.1.10
 	fnv@1.0.7
 	foldhash@0.2.0
-	foreign-types-shared@0.1.1
-	foreign-types@0.3.2
-	futures-channel@0.3.33
-	futures-core@0.3.33
-	futures-executor@0.3.33
-	futures-io@0.3.33
+	futures-channel@0.3.34
+	futures-core@0.3.34
+	futures-executor@0.3.34
+	futures-io@0.3.34
 	futures-lite@2.6.1
-	futures-macro@0.3.33
-	futures-sink@0.3.33
-	futures-task@0.3.33
-	futures-util@0.3.33
-	futures@0.3.33
-	gdk-pixbuf-sys@0.22.0
+	futures-macro@0.3.34
+	futures-sink@0.3.34
+	futures-task@0.3.34
+	futures-util@0.3.34
+	futures@0.3.34
+	gdk-pixbuf-sys@0.22.9
 	gdk-pixbuf@0.22.0
-	gdk4-sys@0.11.4
-	gdk4@0.11.4
+	gdk4-sys@0.11.5
+	gdk4@0.11.5
 	generic-array@0.14.7
 	getrandom@0.2.17
 	getrandom@0.3.4
 	getrandom@0.4.3
 	ghash@0.6.0
-	gio-sys@0.22.8
-	gio@0.22.8
+	gio-sys@0.22.9
+	gio@0.22.10
 	glam@0.30.10
 	glam@0.31.1
 	glam@0.32.1
-	glam@0.33.2
-	glib-macros@0.22.6
-	glib-sys@0.22.8
-	glib@0.22.8
+	glam@0.33.12
+	glib-macros@0.22.9
+	glib-sys@0.22.9
+	glib@0.22.10
 	glob@0.3.4
-	gobject-sys@0.22.6
+	gobject-sys@0.22.9
 	graphene-rs@0.22.8
-	graphene-sys@0.22.8
-	gsk4-sys@0.11.4
-	gsk4@0.11.4
-	gstreamer-app-sys@0.25.0
+	graphene-sys@0.22.9
+	gsk4-sys@0.11.5
+	gsk4@0.11.5
+	gstreamer-app-sys@0.25.4
 	gstreamer-app@0.25.2
-	gstreamer-base-sys@0.25.3
-	gstreamer-base@0.25.3
-	gstreamer-sys@0.25.2
-	gstreamer-video-sys@0.25.3
-	gstreamer-video@0.25.3
-	gstreamer@0.25.3
-	gtk4-macros@0.11.4
-	gtk4-sys@0.11.4
-	gtk4@0.11.4
+	gstreamer-base-sys@0.25.4
+	gstreamer-base@0.25.4
+	gstreamer-sys@0.25.4
+	gstreamer-video-sys@0.25.4
+	gstreamer-video@0.25.4
+	gstreamer@0.25.4
+	gtk4-macros@0.11.5
+	gtk4-sys@0.11.5
+	gtk4@0.11.5
 	hashbrown@0.16.1
 	hashbrown@0.17.1
 	heck@0.5.0
-	hermit-abi@0.5.2
+	hermit-abi@0.5.3
 	hex@0.4.3
-	hmac-sha256@1.1.14
 	hmac@0.13.0
 	hostname-validator@1.1.1
-	http@1.4.2
+	http@1.5.0
 	httparse@1.10.1
-	hybrid-array@0.4.13
+	hybrid-array@0.4.15
 	ident_case@1.0.1
 	image@0.25.10
-	indexmap@2.14.0
+	indexmap@2.14.2
 	indoc@2.0.7
 	inout@0.2.2
-	instability@0.3.12
+	instability@0.3.14
 	is_executable@1.0.6
 	is_terminal_polyfill@1.70.2
 	itertools@0.14.0
 	itertools@0.15.0
 	itoa@1.0.18
 	jobserver@0.1.35
-	js-sys@0.3.103
+	js-sys@0.3.106
 	kasuari@0.4.12
-	kstring@2.0.4
+	kstring@2.0.5
 	lab@0.11.0
-	lazy_static@1.5.0
+	lazy_static@1.5.1
 	libadwaita-sys@0.9.2
 	libadwaita@0.9.2
 	libbz2-rs-sys@0.2.5
-	libc@0.2.189
+	libc@0.2.190
+	libloading@0.9.0
 	libm@0.2.16
-	line-clipping@0.3.7
+	line-clipping@0.3.8
 	linux-raw-sys@0.12.1
 	litrs@1.0.0
 	lock_api@0.4.14
-	log@0.4.33
-	lru@0.18.1
-	lzma-rust2@0.15.8
+	log@0.4.34
+	lru@0.18.5
 	lzma-rust2@0.16.5
-	mac_address@1.1.8
+	mac_address@1.2.0
 	matchers@0.2.0
 	matrixmultiply@0.3.11
 	mbox@0.7.1
@@ -220,78 +210,74 @@ CRATES="
 	memmem@0.1.1
 	memoffset@0.9.1
 	minimal-lexical@0.2.1
-	miniz_oxide@0.8.9
-	mio@1.2.2
+	miniz_oxide@0.9.1
+	mio@1.2.4
 	moxcms@0.8.1
 	muldiv@1.0.1
 	nalgebra-macros@0.3.0
 	nalgebra@0.35.0
-	native-tls@0.2.18
 	ndarray@0.17.2
 	nix@0.29.0
+	nix@0.30.1
 	nom@7.1.3
 	nu-ansi-term@0.50.3
 	num-bigint@0.4.8
 	num-complex@0.4.6
 	num-conv@0.2.2
 	num-derive@0.4.2
-	num-integer@0.1.46
+	num-integer@0.1.47
 	num-rational@0.4.2
 	num-traits@0.2.19
 	num_threads@0.1.7
 	oid@0.2.1
 	once_cell@1.21.4
 	once_cell_polyfill@1.70.2
-	opencv-binding-generator@0.105.0
-	opencv@0.100.1
-	openssl-macros@0.1.1
-	openssl-probe@0.2.1
-	openssl-sys@0.9.117
-	openssl@0.10.81
+	opencv-binding-generator@0.106.0
+	opencv@0.101.0
 	option-operations@0.6.1
 	ordered-float@4.6.0
 	ordered-stream@0.2.0
 	ort-sys@2.0.0-rc.13
 	ort@2.0.0-rc.13
-	palette@0.7.6
-	palette_derive@0.7.6
-	pango-sys@0.22.0
-	pango@0.22.8
+	palette@0.7.7
+	palette_derive@0.7.7
+	palette_math@0.7.7
+	pango-sys@0.22.9
+	pango@0.22.9
 	parking@2.2.1
 	parking_lot@0.12.5
 	parking_lot_core@0.9.12
 	pastey@0.2.3
 	pbkdf2@0.13.0
-	pem-rfc7468@1.0.0
 	percent-encoding@2.3.2
-	pest@2.8.8
-	pest_derive@2.8.8
-	pest_generator@2.8.8
-	pest_meta@2.8.8
+	pest@2.9.2
+	pest_derive@2.9.2
+	pest_generator@2.9.2
+	pest_meta@2.9.2
 	phf@0.11.3
 	phf_codegen@0.11.3
 	phf_generator@0.11.3
 	phf_macros@0.11.3
 	phf_shared@0.11.3
-	picky-asn1-der@0.5.6
-	picky-asn1-x509@0.15.4
+	picky-asn1-der@0.5.7
+	picky-asn1-x509@0.15.5
 	picky-asn1@0.10.1
 	pin-project-lite@0.2.17
 	piper@0.2.5
-	pkg-config@0.3.33
+	pkg-config@0.3.34
 	polling@3.11.0
 	polyval@0.7.3
-	portable-atomic-util@0.2.7
-	portable-atomic@1.14.0
-	powerfmt@0.2.0
-	ppmd-rust@1.4.0
+	portable-atomic-util@0.2.8
+	portable-atomic@1.15.0
+	powerfmt@0.2.1
+	ppmd-rust@1.5.0
 	proc-macro-crate@3.5.0
 	proc-macro2@1.0.107
 	pxfm@0.1.30
 	quote@1.0.47
 	r-efi@5.3.0
 	r-efi@6.0.0
-	rand@0.8.7
+	rand@0.8.8
 	rand_core@0.10.1
 	rand_core@0.6.4
 	ratatui-core@0.1.2
@@ -302,25 +288,20 @@ CRATES="
 	ratatui-widgets@0.3.2
 	ratatui@0.30.2
 	rawpointer@0.2.1
-	rayon-core@1.13.0
-	rayon@1.12.0
 	redox_syscall@0.5.18
-	regex-automata@0.4.16
+	regex-automata@0.4.18
 	regex-syntax@0.8.11
 	regex@1.13.1
 	ring@0.17.14
 	rustc_version@0.4.1
-	rustix@1.1.4
+	rustix@1.1.5
 	rustls-pki-types@1.15.1
-	rustls-webpki@0.103.13
-	rustls@0.23.42
+	rustls-webpki@0.103.15
+	rustls@0.23.45
 	rustversion@1.0.23
 	ryu@1.0.23
-	safe_arch@1.1.0
-	schannel@0.1.29
+	safe_arch@1.2.0
 	scopeguard@1.2.0
-	security-framework-sys@2.17.0
-	security-framework@3.7.0
 	semver@1.0.28
 	serde@1.0.229
 	serde_bytes@0.11.19
@@ -338,13 +319,12 @@ CRATES="
 	signal-hook-mio@0.2.5
 	signal-hook-registry@1.4.8
 	signal-hook@0.3.18
-	simba@0.10.0
+	simba@0.10.2
 	simd-adler32@0.3.10
-	siphasher@1.0.3
+	siphasher@1.0.4
 	slab@0.4.12
-	smallvec@1.15.2
+	smallvec@1.16.2
 	socket2@0.6.5
-	socks@0.3.4
 	stable_deref_trait@1.2.1
 	static_assertions@1.1.0
 	strsim@0.11.1
@@ -353,8 +333,9 @@ CRATES="
 	subtle@2.6.1
 	syn@1.0.109
 	syn@2.0.119
-	syn@3.0.3
+	syn@3.0.6
 	system-deps@7.0.8
+	system-deps@9.0.0
 	target-lexicon@0.12.16
 	target-lexicon@0.13.5
 	tempfile@3.27.0
@@ -363,17 +344,17 @@ CRATES="
 	termios@0.3.3
 	termwiz@0.23.3
 	thiserror-impl@1.0.69
-	thiserror-impl@2.0.19
+	thiserror-impl@2.0.21
 	thiserror@1.0.69
-	thiserror@2.0.19
+	thiserror@2.0.21
 	thread_local@1.1.10
 	time-core@0.1.9
-	time@0.3.54
-	tokio-macros@2.7.1
-	tokio@1.53.1
-	toml@1.1.4+spec-1.1.0
+	time@0.3.55
+	tokio-macros@2.7.2
+	tokio@1.53.2
+	toml@1.1.6+spec-1.1.0
 	toml_datetime@1.1.1+spec-1.1.0
-	toml_edit@0.25.13+spec-1.1.0
+	toml_edit@0.25.15+spec-1.1.0
 	toml_parser@1.1.3+spec-1.1.0
 	toml_writer@1.1.2+spec-1.1.0
 	tracing-attributes@0.1.31
@@ -387,17 +368,17 @@ CRATES="
 	typenum@1.20.1
 	ucd-trie@0.1.7
 	uds_windows@1.2.1
-	unicode-ident@1.0.24
+	unicode-ident@1.0.26
 	unicode-segmentation@1.13.3
 	unicode-truncate@2.0.1
 	unicode-width@0.2.2
 	universal-hash@0.6.1
 	untrusted@0.9.0
-	ureq-proto@0.6.0
-	ureq@3.3.0
+	ureq-proto@0.6.4
+	ureq@3.4.2
 	utf8-zero@0.8.1
 	utf8parse@0.2.2
-	uuid@1.24.0
+	uuid@1.27.0
 	valuable@0.1.1
 	vcpkg@0.2.15
 	version-compare@0.2.1
@@ -405,11 +386,10 @@ CRATES="
 	vtparse@0.6.2
 	wasi@0.11.1+wasi-snapshot-preview1
 	wasip2@1.0.4+wasi-0.2.12
-	wasm-bindgen-macro-support@0.2.126
-	wasm-bindgen-macro@0.2.126
-	wasm-bindgen-shared@0.2.126
-	wasm-bindgen@0.2.126
-	webpki-root-certs@1.0.9
+	wasm-bindgen-macro-support@0.2.129
+	wasm-bindgen-macro@0.2.129
+	wasm-bindgen-shared@0.2.129
+	wasm-bindgen@0.2.129
 	webpki-roots@1.0.9
 	wezterm-bidi@0.2.3
 	wezterm-blob-leases@0.1.1
@@ -417,7 +397,7 @@ CRATES="
 	wezterm-dynamic-derive@0.1.1
 	wezterm-dynamic@0.2.1
 	wezterm-input-types@0.1.0
-	wide@1.5.0
+	wide@1.7.1
 	winapi-i686-pc-windows-gnu@0.4.0
 	winapi-x86_64-pc-windows-gnu@0.4.0
 	winapi@0.3.9
@@ -446,26 +426,29 @@ CRATES="
 	winnow@1.0.4
 	winsplit@0.1.0
 	wit-bindgen@0.57.1
-	zbus@5.18.0
-	zbus_macros@5.18.0
+	zbus@5.19.0
+	zbus_macros@5.19.0
 	zbus_names@4.3.4
-	zbus_polkit@5.0.0
+	zbus_polkit@5.1.0
+	zcheapstr@1.1.0
 	zeroize@1.9.0
 	zeroize_derive@1.5.0
 	zip@8.6.0
-	zlib-rs@0.6.6
+	zlib-rs@0.6.8
 	zopfli@0.8.3
-	zstd-safe@7.2.4
-	zstd-sys@2.0.16+zstd.1.5.7
+	zstd-safe@7.3.0
+	zstd-sys@2.1.0+zstd.1.5.7
 	zstd@0.13.3
-	zvariant@5.13.1
-	zvariant_derive@5.13.1
-	zvariant_utils@3.5.0
+	zune-core@0.5.3
+	zune-jpeg@0.5.15
+	zvariant@5.15.0
+	zvariant_derive@5.15.0
+	zvariant_utils@4.2.0
 "
 
 RUST_MIN_VER="1.96.0"
 
-inherit cargo gnome2-utils systemd
+inherit cargo desktop gnome2-utils systemd xdg-utils
 
 DESCRIPTION="Facial authentication for Linux"
 HOMEPAGE="
@@ -481,21 +464,30 @@ S="${WORKDIR}/${P}"
 
 LICENSE="MIT"
 # Dependent crate licenses
-LICENSE+=" Apache-2.0 BSD ISC MIT MPL-2.0 Unicode-3.0 ZLIB"
+LICENSE+="
+	Apache-2.0 Apache-2.0-with-LLVM-exceptions BSD CDLA-Permissive-2.0
+	ISC MIT Unicode-3.0 Unicode-DFS-2016 WTFPL-2 ZLIB BZIP2
+	|| ( CC0-1.0 MIT-0 )
+"
 LICENSE+=" || ( Apache-2.0 MIT )"
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="gnome gui"
+IUSE="gnome gui openvino"
 
 RDEPEND="
 	app-crypt/tpm2-tss:=
 	dev-libs/openssl:=
 	media-libs/gst-plugins-base:1.0
+	media-libs/gst-plugins-good:1.0
+	media-plugins/gst-plugins-jpeg
+	media-plugins/gst-plugins-v4l2
 	media-libs/gstreamer:1.0
 	media-libs/libv4l
+	media-video/pipewire[gstreamer]
 	media-libs/opencv:=
 	sci-libs/onnxruntime:=
 	sys-libs/pam
+	openvino? ( sci-libs/openvino )
 	gui? (
 		gui-libs/gtk:4
 		gui-libs/libadwaita:1
@@ -523,6 +515,19 @@ src_prepare() {
 	if ! use gnome; then
 		sed -i 's| /etc/dconf/db$||' packaging/config/gazed.service || die
 	fi
+
+	# ort's workspace-level features include openvino/vitis which require
+	# optional system libs. Gate them behind the openvino USE flag.
+	if use openvino; then
+		sed -i 's|ort = {.*}|ort = { workspace = true, features = ["openvino", "vitis"] }|' \
+			crates/gazed/Cargo.toml || die
+	else
+		sed -i 's|ort = { workspace = true }|ort = { workspace = true }|' \
+			crates/gazed/Cargo.toml
+		# Remove openvino and vitis from workspace ort deps
+		sed -i 's|default-features = false, features = \[.*\]|default-features = false, features = ["std", "ndarray", "tracing", "load-dynamic", "api-21"]|' \
+			Cargo.toml || die
+	fi
 }
 
 src_configure() {
@@ -533,12 +538,10 @@ src_compile() {
 	export ORT_LIB_LOCATION="${ESYSROOT}/usr/$(get_libdir)"
 	export ORT_PREFER_DYNAMIC_LINK=1
 
-	# Daemon must be built separately from client binaries. The `gaze` crate
-	# enables gaze-core's `detection` feature (which pulls in ort/ONNX Runtime).
-	# Client binaries use gaze-core with default-features=false to avoid linking
-	# ONNX Runtime, whose static constructors require AVX2 and would crash on
-	# older CPUs.
-	local target_args=( -p gaze )
+	# Build gazed daemon (gaze-vision with detection feature pulls in ort/ONNX Runtime)
+	# and client binaries. The `gazed` crate unconditionally uses gaze-vision/detection
+	# and ort; client binaries use gaze-core without ort to avoid AVX2 requirements.
+	local target_args=( -p gazed )
 	set -- "${CARGO}" build $(usex debug "" --release) ${ECARGO_ARGS[@]} "${target_args[@]}"
 	einfo "${@}"
 	cargo_env "${@}" || die "daemon build failed"
