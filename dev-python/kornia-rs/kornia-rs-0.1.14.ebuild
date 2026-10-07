@@ -1539,7 +1539,6 @@ CRATES="
 	zvariant_utils@2.1.0
 	zvariant_utils@3.2.1
 "
-
 DISTUTILS_EXT=1
 DISTUTILS_USE_PEP517=maturin
 PYTHON_COMPAT=( python3_{11..14} )
