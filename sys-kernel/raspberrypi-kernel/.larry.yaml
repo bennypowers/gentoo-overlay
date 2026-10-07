@@ -1,0 +1,4 @@
+upstream:
+  pv_match: '^(?P<BASE>\d+\.\d+\.\d+)(?:_p\d+)?$'
+  tag_match: '^stable_(?P<DATE>\d{8})$'
+  version_template: '${BASE}_p${DATE}'
