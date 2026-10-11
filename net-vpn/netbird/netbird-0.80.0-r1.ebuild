@@ -54,8 +54,6 @@ RDEPEND="
 	gui? ( x11-misc/xdg-utils )
 "
 
-PATCHES=( "${FILESDIR}"/${PN}-${PV}-systemd-service-sbin.patch )
-
 src_compile() {
 	mkdir build || die
 	ego build -o build -ldflags="
@@ -84,11 +82,13 @@ src_compile() {
 }
 
 src_install() {
-	newsbin build/client netbird
-	fperms 0700 /usr/sbin/netbird
+	# single binary for both CLI and daemon (upstream layout); the daemon
+	# runs as root via the service manager, the CLI is a normal user tool
+	# talking to it over the /var/run/netbird socket
+	newbin build/client netbird
 
 	systemd_dounit "release_files/systemd/netbird@.service"
-	newinitd "${FILESDIR}"/netbird.initd netbird
+	newinitd "${FILESDIR}"/${P}.initd netbird
 
 	einstalldocs
 
