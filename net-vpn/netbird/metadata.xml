@@ -6,7 +6,7 @@
 		<name>Benny Powers</name>
 	</maintainer>
 	<use>
-		<flag name="wayland">Build the GTK4/WebKitGTK desktop GUI client</flag>
+		<flag name="gui">Build the GTK4/WebKitGTK desktop GUI client (netbird-ui)</flag>
 	</use>
 	<upstream>
 		<remote-id type="github">netbirdio/netbird</remote-id>
