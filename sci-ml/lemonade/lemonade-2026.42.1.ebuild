@@ -5,7 +5,10 @@ EAPI=8
 
 RUST_OPTIONAL=1
 
-inherit cmake desktop rust systemd
+# Any Python 3 satisfies tools/version.py at configure time
+PYTHON_COMPAT=( python3_{10..14} )
+
+inherit cmake desktop python-any-r1 rust shell-completion systemd
 
 DESCRIPTION="Local LLM inference platform with server, CLI, and web interface"
 HOMEPAGE="https://github.com/lemonade-sdk/lemonade"
@@ -31,6 +34,8 @@ RDEPEND="
 	>=net-misc/curl-8.5.0
 	>=app-arch/zstd-1.5.5
 	>=net-libs/libwebsockets-4.3.3
+	sys-libs/libcap
+	x11-libs/libdrm[video_cards_amdgpu]
 	gui? (
 		net-libs/webkit-gtk:4.1
 		x11-libs/gtk+:3
@@ -43,12 +48,13 @@ RDEPEND="
 "
 DEPEND="
 	${RDEPEND}
-	net-libs/mbedtls:=
+	net-libs/mbedtls:3=
 "
 BDEPEND="
 	>=dev-cpp/nlohmann_json-3.11.3
 	>=dev-cpp/cli11-2.4.2
 	>=dev-cpp/cpp-httplib-0.26.0
+	${PYTHON_DEPS}
 	gui? (
 		${RUST_DEPEND}
 		net-libs/nodejs
@@ -64,6 +70,11 @@ pkg_setup() {
 
 src_prepare() {
 	cmake_src_prepare
+
+	# The GitHub source archive has no .git and upstream does not ship a
+	# .version file, so tools/version.py would report a wrong development
+	# version. It reads this file first when present.
+	echo "${PV}" > .version || die
 
 	if ! use systemd; then
 		# Prevent linking against libsystemd (journal support)
@@ -111,7 +122,12 @@ src_configure() {
 		-DBUILD_TAURI_APP=OFF
 		-DBUILD_APPIMAGE=OFF
 		-DFETCHCONTENT_FULLY_DISCONNECTED=ON
-		-DUSE_SYSTEM_HTTPLIB=ON
+		# Gentoo's mbedtls:3 slotted pc/lib names do not match the ones
+		# upstream probes for, and the tarball ships no .pc override
+		-DMBEDTLS_INCLUDE_DIR=/usr/include/mbedtls3
+		-DMBEDTLS_LIBRARY=/usr/lib64/libmbedtls-3.so
+		-DMBEDX509_LIBRARY=/usr/lib64/libmbedx509-3.so
+		-DMBEDCRYPTO_LIBRARY=/usr/lib64/libmbedcrypto-3.so
 	)
 	cmake_src_configure
 }
@@ -142,6 +158,5 @@ src_install() {
 		domenu data/lemonade-app.desktop
 	fi
 
-	insinto /usr/share/fish/vendor_completions.d
-	doins "${FILESDIR}"/lemonade.fish
+	dofishcomp "${FILESDIR}"/lemonade.fish
 }
