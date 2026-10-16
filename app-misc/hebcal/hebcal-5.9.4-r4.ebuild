@@ -8,7 +8,7 @@ inherit go-module
 DESCRIPTION="Perpetual Jewish Calendar"
 HOMEPAGE="https://github.com/hebcal/hebcal"
 SRC_URI="https://github.com/hebcal/hebcal/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz
-	${P}-deps.tar.gz"
+	https://github.com/bennypowers/gentoo-overlay/releases/download/${PN}/${P}-deps.tar.xz"
 
 LICENSE="GPL-2"
 SLOT="0"
