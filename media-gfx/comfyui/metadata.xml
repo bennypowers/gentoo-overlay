@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/pkgmetadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<use>
+		<flag name="audio">Pull in sci-ml/torchaudio for audio model
+			support (note: torchaudio is not yet packaged)</flag>
+		<flag name="cuda">Enable NVIDIA CUDA support via sci-ml/pytorch
+			and build the comfy-aimdo CUDA backend</flag>
+		<flag name="migraphx">Enable AMD MIGraphX inference support</flag>
+		<flag name="rocm">Enable AMD ROCm support via sci-ml/pytorch
+			and build the comfy-aimdo ROCm backend</flag>
+	</use>
+	<upstream>
+		<remote-id type="github">Comfy-Org/ComfyUI</remote-id>
+	</upstream>
+</pkgmetadata>
