@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/pkgmetadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<upstream>
+		<remote-id type="github">Comfy-Org/comfy-aimdo</remote-id>
+	</upstream>
+	<use>
+		<flag name="cuda">Build the NVIDIA backend (aimdo.so)</flag>
+		<flag name="rocm">Build the AMD ROCm/HIP backend (aimdo_rocm.so)</flag>
+	</use>
+</pkgmetadata>
