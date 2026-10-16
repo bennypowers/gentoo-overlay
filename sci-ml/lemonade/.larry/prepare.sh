@@ -92,6 +92,13 @@ tar "${TAR_FLAGS[@]}" "$DISTDIR/$CARGO_DEPS" \
 GH_REPO="bennypowers/gentoo-overlay"
 TAG="lemonade"
 
+# gh release upload does not create the release; make sure it exists.
+if ! gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+    echo ">>> lemonade: creating release $TAG..."
+    gh release create "$TAG" --repo "$GH_REPO" --title "lemonade deps" \
+        --notes "npm and cargo dependency cache" >/dev/null
+fi
+
 for asset in "$NPM_DEPS" "$APP_NPM_DEPS" "$CARGO_DEPS"; do
     echo ">>> lemonade: uploading $asset..."
     gh release upload "$TAG" "$DISTDIR/$asset" --repo "$GH_REPO" --clobber
