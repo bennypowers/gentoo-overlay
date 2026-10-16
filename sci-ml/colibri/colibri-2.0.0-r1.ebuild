@@ -26,10 +26,10 @@ RDEPEND="
 		${PYTHON_DEPS}
 		sci-ml/pytorch[${PYTHON_SINGLE_USEDEP}]
 		sci-ml/huggingface_hub[${PYTHON_SINGLE_USEDEP}]
-		sci-ml/tokenizers[${PYTHON_SINGLE_USEDEP}]
 		$(python_gen_cond_dep '
 			sci-ml/safetensors[${PYTHON_USEDEP}]
 			dev-python/numpy[${PYTHON_USEDEP}]
+			sci-ml/tokenizers[${PYTHON_USEDEP}]
 		')
 		bench? (
 			sci-ml/datasets[${PYTHON_SINGLE_USEDEP}]
