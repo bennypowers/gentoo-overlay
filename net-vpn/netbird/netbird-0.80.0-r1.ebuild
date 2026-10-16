@@ -15,20 +15,8 @@ SRC_URI+="
 		https://github.com/bennypowers/gentoo-overlay/releases/download/${PN}/${P}-frontend-bindings.tar.xz
 	)"
 
-# NOTE: to regenerate the dependency tarballs:
-#       go mod vendor
-#       tar -cJf ${P}-deps.tar.xz ${P}/vendor
-#       cd client/ui
-#       go run github.com/wailsapp/wails/v3/cmd/wails3@<fork-tag> \
-#           generate bindings -clean=true -ts
-#       (via a wrapper module with:
-#           replace github.com/wailsapp/wails/v3 => github.com/netbirdio/wails/v3 <fork-tag>)
-#       tar -cJf ${P}-frontend-bindings.tar.xz ${P}/client/ui/frontend/bindings
-#       cd client/ui/frontend
-#       pnpm install --node-linker=hoisted --frozen-lockfile --ignore-scripts
-#       tar -cJf ${P}-node-modules.tar.xz ${P}/client/ui/frontend/node_modules
-#       where <fork-tag> is the netbirdio/wails/v3 version from the replace
-#       directive in the netbird go.mod
+# Tarball generation: .larry/prepare.sh handles deps, frontend-bindings,
+# and node-modules. Run it after bumping the version.
 
 LICENSE="BSD"
 SLOT="0"
