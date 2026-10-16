@@ -9,7 +9,8 @@
 		Colibri runs GLM-5.2 (744B-parameter MoE) on consumer hardware with
 		as little as 25GB RAM. Pure C engine with zero runtime dependencies,
 		streaming experts from disk with an LRU cache. Supports MLA attention,
-		MTP speculative decoding, and optional CUDA GPU offloading.
+		MTP speculative decoding, multiple conversations per server, and
+		optional CUDA/ROCm or Vulkan GPU offloading.
 	</longdescription>
 	<use>
 		<flag name="bench">Install dependencies for quality benchmarks
@@ -20,6 +21,9 @@
 			chat, serving, and weight conversion</flag>
 		<flag name="rocm">Build with AMD ROCm/HIP GPU offloading for
 			resident expert tensors</flag>
+		<flag name="vulkan">Build the Vulkan compute backend for the
+			shared routed-expert tier and dense chains (any Vulkan 1.2
+			driver; independent of cuda/rocm)</flag>
 	</use>
 	<upstream>
 		<remote-id type="github">JustVugg/colibri</remote-id>
