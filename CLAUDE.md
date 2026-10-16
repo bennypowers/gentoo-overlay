@@ -8,52 +8,58 @@ When working with this Gentoo overlay, always consult the README.md file for imp
 
 Before creating or modifying ebuilds, read the README.md for the current best practices.
 
-## Key Scripts
+## Larry
 
-Script files are located in `./scripts/`. All scripts are self-contained and
-need no sudo or interactive input.
+`larry` is a binary on PATH (not a script in this repo). Always prefer `larry`
+for overlay operations (bumps, preparation, manifests, testing, upstream checks)
+over doing them by hand. Only fall back to manual edits when something is
+actually broken: either a bug in the package's `{atom}/.larry/prepare.sh` hook,
+or a bug in larry itself. If larry works, use larry.
 
-- `larry` - Overlay management CLI with subcommands:
-  - `import` - Import ebuild from another overlay (::guru, ::gentoo), rewrite maintainer, prepare
-  - `bump` - Copy latest ebuild to new version or revision, then prepare
-  - `prepare` - Download distfiles, generate dep caches, upload, and create Manifest.
-    Auto-detects type from ebuild content:
-    - `npm`: downloads from npm registry, generates deps tarball, uploads to GitHub release
-    - `cargo`: downloads Cargo.lock from GitHub tag (tries root, then `bindings/python/`), parses registry crates, updates CRATES variable
-    - `go`: downloads source, runs `go mod vendor`, stores deps tarball in package dir
-    - `generic`: just runs `ebuild digest`
-  - `test` - Test-build ebuilds locally without pushing. Accepts `--compile`, `--merge`,
-    or any ebuild phase like `--prepare`, `--configure`, `--install`. Multiple phases can
-    be combined: `larry test --fetch --unpack --prepare <atom>`.
-    Use `--emerge` for clean-room container builds with GPU passthrough.
-  - `upstream` - Check for upstream version updates. Supports PyPI, GitHub,
-    and npm registry. Use `--fresh` to clear cache. Cache expires after 6 hours.
+Subcommands:
+- `import` - Import ebuild from another overlay (::guru, ::gentoo), rewrite maintainer, prepare
+- `bump` - Copy latest ebuild to new version or revision, then prepare
+- `prepare` - Download distfiles, generate dep caches, upload, and create Manifest.
+  Auto-detects type from ebuild content:
+  - `npm`: downloads from npm registry, generates deps tarball, uploads to GitHub release
+  - `cargo`: downloads Cargo.lock from GitHub tag (tries root, then `bindings/python/`), parses registry crates, updates CRATES variable
+  - `go`: downloads source, runs `go mod vendor`, stores deps tarball in package dir
+  - `generic`: just runs `ebuild digest`
+
+  Packages can also carry a per-package hook at `{atom}/.larry/prepare.sh`,
+  which `larry prepare` runs when present.
+- `test` - Test-build ebuilds locally without pushing. Accepts `--compile`, `--merge`,
+  or any ebuild phase like `--prepare`, `--configure`, `--install`. Multiple phases can
+  be combined: `larry test --fetch --unpack --prepare <atom>`.
+  Use `--emerge` for clean-room container builds with GPU passthrough.
+- `upstream` - Check for upstream version updates. Supports PyPI, GitHub,
+  and npm registry. Use `--fresh` to clear cache. Cache expires after 6 hours.
 
 ## Workflows
 
 ### New ebuild
 
 1. Create `<cat>/<pkg>/` directory, write the ebuild and `metadata.xml`
-2. `scripts/larry prepare <cat>/<pkg>/<pkg>-<ver>.ebuild`
+2. `larry prepare <cat>/<pkg>/<pkg>-<ver>.ebuild`
 3. `pkgcheck scan -r bennypowers <cat>/<pkg>`
-4. `scripts/larry test --pretend <cat>/<pkg>`
-5. `scripts/larry test <cat>/<pkg>`
+4. `larry test --pretend <cat>/<pkg>`
+5. `larry test <cat>/<pkg>`
 
 ### Version bump (upstream release)
 
-1. `scripts/larry bump <cat>/<pkg> <new-version>`
+1. `larry bump <cat>/<pkg> <new-version>`
 2. Edit the new ebuild if SRC_URI, deps, or patches changed
-3. Re-run `scripts/larry prepare <cat>/<pkg>/<pkg>-<new-version>.ebuild` if edited
+3. Re-run `larry prepare <cat>/<pkg>/<pkg>-<new-version>.ebuild` if edited
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
-5. `scripts/larry test <cat>/<pkg>-<new-version>`
+5. `larry test <cat>/<pkg>-<new-version>`
 
 ### Revision bump (fix existing ebuild)
 
-1. `scripts/larry bump --revision <cat>/<pkg>`
+1. `larry bump --revision <cat>/<pkg>`
 2. Edit the new revision with the fix
-3. Re-run `scripts/larry prepare <cat>/<pkg>/<pkg>-<ver>-rN.ebuild` if edited
+3. Re-run `larry prepare <cat>/<pkg>/<pkg>-<ver>-rN.ebuild` if edited
 4. `pkgcheck scan -r bennypowers <cat>/<pkg>`
-5. `scripts/larry test <cat>/<pkg>-<ver>-rN`
+5. `larry test <cat>/<pkg>-<ver>-rN`
 
 ## Commit Messages
 use conventional commit style

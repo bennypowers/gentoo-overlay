@@ -5,8 +5,7 @@
 
 # bennypowers overlay
 
-A Gentoo overlay for packages that haven't herded their way into `::gentoo` or
-`::guru` yet.
+A Gentoo overlay for packages that haven't herded their way into `::gentoo` or `::guru` yet.
 
 ## Setup
 
@@ -16,7 +15,7 @@ git config core.hooksPath hooks   # QA checks on commit and push
 
 ## Larry
 
-Everything goes through `scripts/larry`.
+Everything goes through `larry`, a binary on PATH.
 
 | Command            | What it does |
 | ------------------ | ------------ |
@@ -29,10 +28,10 @@ Everything goes through `scripts/larry`.
 ## Workflow
 
 ```
-eix -e <pkg>                                          # don't duplicate ::gentoo or ::guru
-scripts/larry bump <cat>/<pkg> <version>              # copies, fetches, caches, manifests
+eix -e <pkg>                                           # don't duplicate ::gentoo or ::guru
+larry bump <cat>/<pkg> <version>                       # copies, fetches, caches, manifests
 # edit the ebuild if needed, then re-run larry prepare
-pkgcheck scan -r bennypowers <cat>/<pkg>              # lint (also runs on commit)
-scripts/larry test <cat>/<pkg>                        # moo-ve fast, break nothing
+pkgcheck scan -r bennypowers <cat>/<pkg>               # lint (also runs on commit)
+larry test <cat>/<pkg>                                 # moo-ve fast, break nothing
 git add && git commit                                 # hooks handle the rest
 ```
