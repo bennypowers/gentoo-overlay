@@ -17,12 +17,34 @@ if [ -d "$HOME/.local/bin" ]; then
     export PATH="$HOME/.local/bin:$PATH"
 fi
 
-echo ">>> netbird: preparing dependency tarballs for ${P}..."
+DISTDIR="${DISTDIR:?DISTDIR not set}"
+EBUILD="${EBUILD:?EBUILD not set}"
+PV="${PV:?PV not set}"
+PN="${PN:?PN not set}"
+
+# Reproducible tar flags: same input always yields the same tarball, so
+# re-running prepare does not invalidate the Manifest or clobber the
+# uploaded release asset with different bytes.
+TAR_FLAGS=(--sort=name --mtime='@0' --owner=0 --group=0 --numeric-owner -cJf)
+
+# Tarballs are named ${PN}-${PV}-* (not ${P}-*) so ebuild revisions share
+# them. Existing tarballs in DISTDIR are NOT regenerated: published
+# distfiles must stay immutable — delete the file in DISTDIR to force a
+# rebuild.
+BASE="${PN}-${PV}"
+DEPS_TARBALL="${BASE}-deps.tar.xz"
+BINDINGS_TARBALL="${BASE}-frontend-bindings.tar.xz"
+NODE_MODULES_TARBALL="${BASE}-node-modules.tar.xz"
+
+if [ -f "$DISTDIR/$DEPS_TARBALL" ] && [ -f "$DISTDIR/$BINDINGS_TARBALL" ] && [ -f "$DISTDIR/$NODE_MODULES_TARBALL" ]; then
+    echo ">>> netbird: dependency tarballs for ${BASE} already in DISTDIR, skipping regeneration"
+    exit 0
+fi
+
+echo ">>> netbird: preparing dependency tarballs for ${BASE}..."
 
 # ── Resolve paths ──────────────────────────────────────────────────────────
 
-DISTDIR="${DISTDIR:?DISTDIR not set}"
-EBUILD="${EBUILD:?EBUILD not set}"
 OVERLAY_DIR="$(dirname "$(dirname "$EBUILD")")/.."
 WORK=$(mktemp -d /tmp/prepare-XXXXXX)
 trap 'rm -rf "$WORK"' EXIT
@@ -62,7 +84,7 @@ echo ">>> netbird: creating deps.tar.xz..."
     export TMPDIR="$WORK"
     go mod vendor
 )
-tar -cJf "$DISTDIR/${P}-deps.tar.xz" -C "$SRC_DIR" vendor
+tar "${TAR_FLAGS[@]}" "$DISTDIR/$DEPS_TARBALL" -C "$SRC_DIR" vendor
 
 # ── 2. Frontend bindings tarball ───────────────────────────────────────────
 # The wails fork at github.com/netbirdio/wails has go.mod with
@@ -87,7 +109,7 @@ git checkout -q "$WAILS_COMMIT"
     export TMPDIR="$WORK"
     go run -mod=mod github.com/wailsapp/wails/v3/cmd/wails3 generate bindings -clean=true -ts
 )
-tar -cJf "$DISTDIR/${P}-frontend-bindings.tar.xz" \
+tar "${TAR_FLAGS[@]}" "$DISTDIR/$BINDINGS_TARBALL" \
     -C "$SRC_DIR/client/ui" frontend/bindings
 
 # ── 3. Node modules tarball ───────────────────────────────────────────────
@@ -97,17 +119,27 @@ echo ">>> netbird: creating node-modules.tar.xz..."
     cd "$SRC_DIR/client/ui/frontend"
     pnpm install --node-linker=hoisted --frozen-lockfile --ignore-scripts
 )
-tar -cJf "$DISTDIR/${P}-node-modules.tar.xz" \
+tar "${TAR_FLAGS[@]}" "$DISTDIR/$NODE_MODULES_TARBALL" \
     -C "$SRC_DIR/client/ui/frontend" node_modules
 
 # ── Upload to GitHub release ──────────────────────────────────────────────
+# The release is tagged with the package name — this is what the ebuild's
+# SRC_URI fetches (`releases/download/${PN}/...`) and it makes the tarballs
+# reusable across ebuild revisions.
 
 GH_REPO="bennypowers/gentoo-overlay"
-TAG="v${PV}"
+TAG="${PN}"
 
-for asset in "${P}-deps.tar.xz" "${P}-frontend-bindings.tar.xz" "${P}-node-modules.tar.xz"; do
+# gh release upload does not create the release; make sure it exists.
+if ! gh release view "$TAG" --repo "$GH_REPO" >/dev/null 2>&1; then
+    echo ">>> netbird: creating release $TAG..."
+    gh release create "$TAG" --repo "$GH_REPO" --title "netbird deps" \
+        --notes "Vendored dependency tarballs for netbird" >/dev/null
+fi
+
+for asset in "$DEPS_TARBALL" "$BINDINGS_TARBALL" "$NODE_MODULES_TARBALL"; do
     echo ">>> netbird: uploading $asset..."
-    gh release upload "$TAG" "$DISTDIR/$asset" --repo "$GH_REPO" --clobber 2>&1 || true
+    gh release upload "$TAG" "$DISTDIR/$asset" --repo "$GH_REPO" --clobber
 done
 
 echo ">>> netbird: done"
