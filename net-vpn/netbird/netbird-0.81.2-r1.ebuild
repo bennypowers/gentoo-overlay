@@ -76,9 +76,9 @@ src_install() {
 	newbin build/client netbird
 
 	systemd_dounit "release_files/systemd/netbird@.service"
-	# initd points at /usr/bin/netbird (upstream layout); the unversioned
-	# netbird.initd with the /usr/sbin path is kept for the 0.80.0 ebuild
-	newinitd "${FILESDIR}"/${PN}-${PV}-r1.initd netbird
+	# Unversioned filename: version-pinned FILESDIR names are not copied
+	# by version bumps, which broke src_install for 0.81.2.
+	newinitd "${FILESDIR}/netbird.initd" netbird
 
 	einstalldocs
 
