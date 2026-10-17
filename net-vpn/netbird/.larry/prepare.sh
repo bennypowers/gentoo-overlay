@@ -84,7 +84,13 @@ echo ">>> netbird: creating deps.tar.xz..."
     export TMPDIR="$WORK"
     go mod vendor
 )
-tar "${TAR_FLAGS[@]}" "$DISTDIR/$DEPS_TARBALL" -C "$SRC_DIR" vendor
+# Tarball roots must carry the ${P}/ prefix (the upstream source dir
+# name) so they unpack into ${S}: go-module_src_unpack skips
+# `ego mod verify` — which needs network — only when ${S}/vendor exists,
+# and the ebuild references the frontend assets relative to ${S}.
+PREFIX="$(basename "$SRC_DIR")"
+
+tar "${TAR_FLAGS[@]}" "$DISTDIR/$DEPS_TARBALL" -C "$WORK" "${PREFIX}/vendor"
 
 # ── 2. Frontend bindings tarball ───────────────────────────────────────────
 # The wails fork at github.com/netbirdio/wails has go.mod with
@@ -110,7 +116,7 @@ git checkout -q "$WAILS_COMMIT"
     go run -mod=mod github.com/wailsapp/wails/v3/cmd/wails3 generate bindings -clean=true -ts
 )
 tar "${TAR_FLAGS[@]}" "$DISTDIR/$BINDINGS_TARBALL" \
-    -C "$SRC_DIR/client/ui" frontend/bindings
+    -C "$WORK" "${PREFIX}/client/ui/frontend/bindings"
 
 # ── 3. Node modules tarball ───────────────────────────────────────────────
 
@@ -120,7 +126,7 @@ echo ">>> netbird: creating node-modules.tar.xz..."
     pnpm install --node-linker=hoisted --frozen-lockfile --ignore-scripts
 )
 tar "${TAR_FLAGS[@]}" "$DISTDIR/$NODE_MODULES_TARBALL" \
-    -C "$SRC_DIR/client/ui/frontend" node_modules
+    -C "$WORK" "${PREFIX}/client/ui/frontend/node_modules"
 
 # ── Upload to GitHub release ──────────────────────────────────────────────
 # The release is tagged with the package name — this is what the ebuild's
