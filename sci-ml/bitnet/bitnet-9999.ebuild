@@ -3,7 +3,7 @@
 
 EAPI=8
 
-LLVM_COMPAT=( {18..22} )
+LLVM_COMPAT=( {18..23} )
 
 inherit cmake git-r3 llvm-r2 systemd toolchain-funcs
 
@@ -54,6 +54,13 @@ src_prepare() {
 	sed -i 's/int8_t \* y_col = y/const int8_t * y_col = y/' \
 		src/ggml-bitnet-mad.cpp || die
 
+	# Codegen templates still emit tensor->backend == GGML_BACKEND_TYPE_CPU,
+	# which the pinned llama.cpp fork no longer defines; upstream's checked-in
+	# include/bitnet-lut-kernels.h already dropped the check, the generators
+	# were not updated
+	sed -i 's/tensor->backend == GGML_BACKEND_TYPE_CPU && //' \
+		utils/codegen_tl1.py utils/codegen_tl2.py || die
+
 	cmake_src_prepare
 	bitnet_run_codegen
 }
@@ -71,6 +78,10 @@ src_configure() {
 		-DBITNET_X86_TL2=$(usex cpu_flags_x86_avx2 ON OFF)
 		-DBITNET_ARM_TL1=$(usex cpu_flags_arm_neon ON OFF)
 		-DBUILD_NUMBER=1
+		# llama.cpp defaults tools/common to LLAMA_STANDALONE, which is OFF
+		# when added via add_subdirectory(); we install llama-cli/llama-server
+		-DLLAMA_BUILD_COMMON=ON
+		-DLLAMA_BUILD_TOOLS=ON
 	)
 	cmake_src_configure
 }
