@@ -1,0 +1,59 @@
+Gentoo's abseil-cpp-20260107.1 exports a C++20 usage requirement. MIGraphX
+appends a raw C++17 compiler option, which overrides the standard selected
+by CMake for targets consuming Abseil through protobuf and causes generated
+protobuf sources to fail when they include Abseil headers.
+
+Declare MIGraphX's C++17 baseline through CMake's standard properties. This
+preserves C++17 for the rest of MIGraphX while allowing CMake to raise the
+protobuf targets to the C++20 standard required by Abseil. The ONNX and
+TensorFlow frontends already propagate protobuf's usage requirements
+upstream. Accept the moved accumulator used by C++20's std::accumulate
+implementation in the grid-sample parser.
+
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -194,12 +194,9 @@
+     add_compile_definitions("$<$<COMPILE_LANGUAGE:C,CXX>:_CRT_SECURE_NO_WARNINGS;_USE_MATH_DEFINES>")
+ endif()
+
+-set(CMAKE_CXX_STANDARD_DEFAULT "")
+-if(MSVC)
+-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/std:c++17>)
+-else()
+-    add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-std=c++17>)
+-endif()
++set(CMAKE_CXX_STANDARD 17)
++set(CMAKE_CXX_STANDARD_REQUIRED ON)
++set(CMAKE_CXX_EXTENSIONS OFF)
+
+ include(EnableCompilerWarnings)
+ include(ROCMClangTidy)
+--- a/src/onnx/parse_gridsample.cpp
++++ b/src/onnx/parse_gridsample.cpp
+@@ -173,7 +173,7 @@
+         return std::accumulate(std::next(instructions.begin()),
+                                instructions.end(),
+                                instructions.front(),
+-                               [&info](auto& ret, auto& ins) {
++                               [&info](auto ret, auto& ins) {
+                                    return info.add_instruction(
+                                        make_op("concat", {{"axis", 0}}), ret, ins);
+                                });
+@@ -186,7 +186,7 @@
+         return std::accumulate(std::next(instructions.begin()),
+                                instructions.end(),
+                                instructions.front(),
+-                               [&info, &dim](auto& ret, auto& ins) {
++                               [&info, &dim](auto ret, auto& ins) {
+                                    return info.add_instruction(
+                                        make_op("concat", {{"axis", dim}}), ret, ins);
+                                });
+@@ -535,7 +535,7 @@
+         auto weights_t = std::accumulate(std::next(corner_weights.begin()),
+                                          corner_weights.end(),
+                                          corner_weights.front(),
+-                                         [&info](auto& acc, auto& ins) {
++                                         [&info](auto acc, auto& ins) {
+                                              return info.add_instruction(
+                                                  make_op("concat", {{"axis", 1}}), acc, ins);
+                                          });

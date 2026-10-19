@@ -1,0 +1,13 @@
+--- a/cmake/DetectPackageBackend.cmake
++++ b/cmake/DetectPackageBackend.cmake
+@@ -141,7 +141,9 @@
+ endfunction()
+ 
+ function(detect_package_backend)
+-    _probe_amdrocm_packages()
++    if(NOT DEFINED CACHE{MIGRAPHX_PACKAGE_BACKEND})
++        _probe_amdrocm_packages()
++    endif()
+ 
+     if(NOT DEFINED CACHE{MIGRAPHX_PACKAGE_BACKEND})
+         # No explicit -D flag: auto-detect from installed amdrocm* packages.
