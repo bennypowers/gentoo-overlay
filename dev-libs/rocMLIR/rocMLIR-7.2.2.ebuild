@@ -43,6 +43,13 @@ src_prepare() {
 	# fix the script to include the lib/ component.
 	sed -i 's|rocm_path / "amdgcn"|rocm_path / "lib" / "amdgcn"|' \
 		mlir/lib/Target/AmdDeviceLibsIncGen.py || die
+
+	# rocmlir-lib hardcodes DESTINATION lib, ignoring
+	# CMAKE_INSTALL_LIBDIR; respect it so libs land in lib64
+	sed -i -e 's|DESTINATION lib/llvm)|DESTINATION ${CMAKE_INSTALL_LIBDIR}/llvm)|' \
+		-e 's|DESTINATION lib)|DESTINATION ${CMAKE_INSTALL_LIBDIR})|' \
+		-e 's|ARCHIVE DESTINATION lib$|ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}|' \
+		mlir/tools/rocmlir-lib/CMakeLists.txt || die
 }
 
 src_configure() {
