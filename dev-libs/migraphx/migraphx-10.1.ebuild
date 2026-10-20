@@ -62,6 +62,12 @@ PATCHES=(
 	# when MIGRAPHX_PACKAGE_BACKEND is preset; guard it so the explicit
 	# backend skips the probe entirely (rpm writes cause sandbox violations)
 	"${FILESDIR}/${P}-skip-package-probe.patch"
+	# migraphx 10.1 force-routes fused conv/dot through rocMLIR on RDNA,
+	# but released rocMLIR (<= 7.2.4) has no RDNA WMMA rock kernels and
+	# every such fusion dies with "No solutions provided for gpu::mlir_op".
+	# Falls back to MIOpen/rocBLAS on gfx11/gfx12. Drop when rocMLIR tags
+	# RDNA rock support (see patch header)
+	"${FILESDIR}/${P}-mlir-rdna-fallback.patch"
 )
 
 src_prepare() {

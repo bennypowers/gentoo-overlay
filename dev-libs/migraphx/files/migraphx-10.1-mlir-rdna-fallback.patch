@@ -1,0 +1,73 @@
+Restrict rocMLIR fusion to non-RDNA GPUs on released rocMLIR
+
+migraphx 10.1 force-routes all fused conv/dot ops (and convolution_
+backwards, and kv-cache attention) through rocMLIR on gfx11/gfx12
+("navi"), but released rocMLIR (<= 7.2.4) has no RDNA WMMA rock
+kernels: RDNA support exists only on rocMLIR main (gfx1250 wmma work,
+late 2025) and was never tagged. Against a released rocMLIR every such
+fusion dies at compile time with:
+
+  compile_ops.cpp:433: add_compiles: No solutions provided for gpu::mlir_op
+
+AMD's ROCm 10.1 distribution pairs migraphx 10.1 with an unreleased
+rocMLIR snapshot that carries the RDNA support; that combination is not
+reproducible from tags.
+
+Default navi to mlir_mode::none so conv/dot fall back to MIOpen and
+rocBLAS; MIGRAPHX_MLIR_USE_SPECIFIC_OPS still forces ops on for
+testing. The gfx12 convolution_backwards forcing is commented out
+(accepting the less accurate MIOpen half path) and kv-cache attention
+is gated off on navi.
+
+DROP THIS PATCH when rocMLIR tags a release with RDNA WMMA rock
+support (watch for a tag after 7.2.4 containing the gfx1250 wmma
+commits).
+--- a/src/targets/gpu/fuse_mlir.cpp
++++ b/src/targets/gpu/fuse_mlir.cpp
+@@ -1645,8 +1645,16 @@
+             return mlir_mode::none;
+         if(env_op_usage().is_requested(option))
+             return mlir_mode::all;
++        // Released rocMLIR (<= 7.2.4) has no RDNA WMMA rock kernels; RDNA
++        // support exists only on rocMLIR main (gfx1250 wmma work, late
++        // 2025, unreleased). Forcing mlir_mode::all on navi against a
++        // released rocMLIR makes every fused conv/dot fail with
++        // "No solutions provided for gpu::mlir_op". Default to none on
++        // navi instead; MIGRAPHX_MLIR_USE_SPECIFIC_OPS (checked above)
++        // can still force ops on for testing. Drop this hunk when rocMLIR
++        // tags RDNA rock support.
+         if(is_navi)
+-            return mlir_mode::all;
++            return mlir_mode::none;
+ #if !MIGRAPHX_USE_MIOPEN
+         if(contains(option, "conv"))
+             return mlir_mode::all;
+@@ -1667,7 +1675,9 @@
+     match::find_matches(mpm, find_channel_slice_convolution{});
+     mpm.run_pass(dead_code_elimination{});
+ 
+-    match::find_matches(mpm, find_mlir_kv_cache_attention_op{mlir_mode::all});
++    match::find_matches(mpm,
++                        find_mlir_kv_cache_attention_op{.dot_mode = is_navi ? mlir_mode::none
++                                                                                : mlir_mode::all});
+     mpm.run_pass(dead_code_elimination{});
+ 
+     match::find_matches(mpm, find_mlir_attention_op{});
+@@ -1683,10 +1693,13 @@
+     // env-var overrides.
+     mlir_mode conv_backwards_mode =
+         get_mode("convolution_backwards", MIGRAPHX_USE_MIOPEN ? mlir_mode::none : mlir_mode::all);
+-    if(starts_with(device_name, "gfx12"))
+-    {
+-        conv_backwards_mode = mlir_mode::all;
+-    }
++    // Same rocMLIR RDNA gap as above: gfx12 would be forced through
++    // rocMLIR for convolution_backwards, which crashes with no solutions
++    // against released rocMLIR. Accept the less accurate MIOpen half
++    // path instead. Restore the gfx12 forcing below when rocMLIR tags
++    // RDNA rock support:
++    //   if(starts_with(device_name, "gfx12"))
++    //       conv_backwards_mode = mlir_mode::all;
+ 
+     match::find_matches(
+         mpm,
