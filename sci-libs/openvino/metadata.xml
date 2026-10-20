@@ -11,6 +11,7 @@
 		ONNX, TensorFlow, PyTorch, and PaddlePaddle models.
 	</longdescription>
 	<use>
+		<flag name="js">Build the JavaScript/Node.js bindings</flag>
 		<flag name="gpu">Build the OpenCL-based GPU inference plugin
 			(works with Intel, AMD, and other OpenCL-capable GPUs)</flag>
 		<flag name="python">Build Python bindings (openvino Python package)</flag>

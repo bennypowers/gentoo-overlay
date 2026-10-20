@@ -8,4 +8,7 @@
 	<upstream>
 		<remote-id type="github">earendil-works/pi</remote-id>
 	</upstream>
+	<use>
+		<flag name="webui">Install the bundled web UI</flag>
+	</use>
 </pkgmetadata>

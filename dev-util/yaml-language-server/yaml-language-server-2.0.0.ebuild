@@ -6,7 +6,7 @@ EAPI=8
 DESCRIPTION="Language Server for YAML Files"
 HOMEPAGE="https://github.com/redhat-developer/yaml-language-server"
 SRC_URI="
-	mirror://npm/${PN}/-/${P}.tgz
+	https://registry.npmjs.org/${PN}/-/${P}.tgz
 	https://github.com/bennypowers/gentoo-overlay/releases/download/${PN}/${P}-deps.tar.xz
 "
 S="${WORKDIR}"

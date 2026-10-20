@@ -10,9 +10,9 @@ MY_WEBUI_P="${MY_WEBUI_NPM_NAME}-0.75.3"
 DESCRIPTION="AI coding agent CLI with interactive TUI, tool calling, and session management"
 HOMEPAGE="https://pi.dev https://github.com/earendil-works/pi"
 SRC_URI="
-	mirror://npm/${MY_NPM_SCOPE}/${PN}/-/${P}.tgz -> ${P}.tgz
+	https://registry.npmjs.org/${MY_NPM_SCOPE}/${PN}/-/${P}.tgz -> ${P}.tgz
 	https://github.com/bennypowers/gentoo-overlay/releases/download/pi-coding-agent/${P}-deps.tar.xz
-	webui? ( mirror://npm/${MY_NPM_SCOPE}/${MY_WEBUI_NPM_NAME}/-/${MY_WEBUI_P}.tgz -> ${MY_WEBUI_P}.tgz
+	webui? ( https://registry.npmjs.org/${MY_NPM_SCOPE}/${MY_WEBUI_NPM_NAME}/-/${MY_WEBUI_P}.tgz -> ${MY_WEBUI_P}.tgz
 		https://github.com/bennypowers/gentoo-overlay/releases/download/pi-coding-agent/${MY_WEBUI_P}-deps.tar.xz )
 "
 S="${WORKDIR}"

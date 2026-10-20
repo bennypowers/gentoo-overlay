@@ -6,7 +6,7 @@ EAPI=8
 DESCRIPTION="A language server for emmet.io"
 HOMEPAGE="https://github.com/olrtg/emmet-language-server"
 SRC_URI="
-	mirror://npm/@olrtg/${PN}/-/${P}.tgz
+	https://registry.npmjs.org/@olrtg/${PN}/-/${P}.tgz
 	https://github.com/bennypowers/gentoo-overlay/releases/download/${P}/${P}-deps.tar.xz
 "
 S="${WORKDIR}"

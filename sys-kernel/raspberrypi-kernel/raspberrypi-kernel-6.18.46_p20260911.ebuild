@@ -18,7 +18,7 @@ S="${WORKDIR}/linux-${COMMIT}"
 LICENSE="GPL-2"
 SLOT="${PV}"
 KEYWORDS="-* ~arm64"
-IUSE="-initramfs debug +strip"
+IUSE="initramfs debug +strip"
 
 RDEPEND="
 	>=sys-boot/raspberrypi-firmware-1.20260513

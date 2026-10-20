@@ -6,7 +6,7 @@ EAPI=8
 DESCRIPTION="Makes eslint the fastest linter on the planet"
 HOMEPAGE="https://github.com/mantoni/eslint_d.js"
 SRC_URI="
-	mirror://npm/${PN}/-/${PN}-${PV}.tgz -> ${P}.tgz
+	https://registry.npmjs.org/${PN}/-/${PN}-${PV}.tgz -> ${P}.tgz
 	https://github.com/bennypowers/gentoo-overlay/releases/download/${PN}/${P}-deps.tar.xz
 "
 S="${WORKDIR}"

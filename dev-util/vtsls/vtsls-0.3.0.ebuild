@@ -8,7 +8,7 @@ MY_NPM_NAME="language-server"
 DESCRIPTION="LSP wrapper for TypeScript extension of VSCode"
 HOMEPAGE="https://github.com/yioneko/vtsls"
 SRC_URI="
-	mirror://npm/@vtsls/${MY_NPM_NAME}/-/${MY_NPM_NAME}-${PV}.tgz -> ${P}.tgz
+	https://registry.npmjs.org/@vtsls/${MY_NPM_NAME}/-/${MY_NPM_NAME}-${PV}.tgz -> ${P}.tgz
 	https://github.com/bennypowers/gentoo-overlay/releases/download/${P}/${P}-deps.tar.xz
 "
 S="${WORKDIR}"

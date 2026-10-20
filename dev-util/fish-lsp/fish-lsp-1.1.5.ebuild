@@ -6,7 +6,7 @@ EAPI=8
 DESCRIPTION="LSP implementation for fish shell"
 HOMEPAGE="https://fish-lsp.dev https://github.com/ndonfris/fish-lsp"
 SRC_URI="
-	mirror://npm/${PN}/-/${P}.tgz
+	https://registry.npmjs.org/${PN}/-/${P}.tgz
 	https://github.com/bennypowers/gentoo-overlay/releases/download/${PN}/${P}-deps.tar.xz
 "
 S="${WORKDIR}"

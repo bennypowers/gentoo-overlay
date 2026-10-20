@@ -84,6 +84,7 @@ SLOT="0"
 KEYWORDS="~amd64"
 
 IUSE="gpu js python test"
+RESTRICT="!test? ( test )"
 
 REQUIRED_USE="python? ( ${PYTHON_REQUIRED_USE} )"
 

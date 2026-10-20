@@ -38,7 +38,6 @@ QA_FLAGS_IGNORED="usr/bin/javy"
 
 # Download wasm32-wasip1 stdlib at build time since the URL depends on
 # the installed rust-bin version.
-RESTRICT="network-sandbox"
 
 src_unpack() {
 	cargo_gen_config
@@ -50,7 +49,7 @@ src_unpack() {
 	# mismatch (the "(gentoo)" compiler identity). rust-bin is upstream
 	# rustc and IS compatible with the prebuilt stdlib.
 	local rustbin_dir
-	rustbin_dir=$(find /opt -maxdepth 1 -name "rust-bin-*" -type d | sort -V | tail -1) \
+	rustbin_dir=$(find /opt -maxdepth 1 -name "rust-bin-*" -type d | sort -V | tail -n 1) \
 		|| die "Could not find rust-bin installation"
 	[[ -n "${rustbin_dir}" ]] || die "dev-lang/rust-bin not found in /opt"
 
@@ -121,7 +120,7 @@ src_compile() {
 		export CARGO_PROFILE_RELEASE_STRIP=none
 		export CC_wasm32_wasip1=clang
 		local rustbin_dir
-		rustbin_dir=$(find /opt -maxdepth 1 -name "rust-bin-*" -type d | sort -V | tail -1)
+		rustbin_dir=$(find /opt -maxdepth 1 -name "rust-bin-*" -type d | sort -V | tail -n 1)
 		export RUSTC="${rustbin_dir}/bin/rustc"
 		export CARGO="${rustbin_dir}/bin/cargo"
 		export CARGO_TARGET_WASM32_WASIP1_RUSTFLAGS="--sysroot ${wasi_sysroot} -C target-feature=+simd128"

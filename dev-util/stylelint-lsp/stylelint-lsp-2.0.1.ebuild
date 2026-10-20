@@ -6,7 +6,7 @@ EAPI=8
 DESCRIPTION="A stylelint language server"
 HOMEPAGE="https://github.com/bmatcuk/stylelint-lsp"
 SRC_URI="
-	mirror://npm/${PN}/-/${P}.tgz
+	https://registry.npmjs.org/${PN}/-/${P}.tgz
 	https://github.com/bennypowers/gentoo-overlay/releases/download/${P}/${P}-deps.tar.xz
 "
 S="${WORKDIR}"

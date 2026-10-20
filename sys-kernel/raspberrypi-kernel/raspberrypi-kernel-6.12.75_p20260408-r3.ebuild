@@ -20,7 +20,7 @@ S="${WORKDIR}/linux-${COMMIT}"
 LICENSE="GPL-2"
 KEYWORDS="-* ~arm64"
 # RPi5 boots without initramfs; the firmware bootloader loads the kernel directly.
-IUSE="-initramfs debug +strip"
+IUSE="initramfs debug +strip"
 
 RDEPEND="
 	sys-boot/raspberrypi-firmware

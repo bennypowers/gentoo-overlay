@@ -20,5 +20,6 @@
 	<use>
 		<flag name="gnome">Install GNOME Shell extension for GDM face authentication</flag>
 		<flag name="gui">Build GTK4/Adwaita GUI for enrollment and configuration</flag>
+		<flag name="openvino">Use OpenVINO backend for face detection models</flag>
 	</use>
 </pkgmetadata>

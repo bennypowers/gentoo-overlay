@@ -6,7 +6,7 @@ EAPI=8
 DESCRIPTION="JSON fixer and formatter for humans using relaxed JSON5"
 HOMEPAGE="https://github.com/rhysd/fixjson"
 SRC_URI="
-	mirror://npm/${PN}/-/${PN}-${PV}.tgz -> ${P}.tgz
+	https://registry.npmjs.org/${PN}/-/${PN}-${PV}.tgz -> ${P}.tgz
 	https://github.com/bennypowers/gentoo-overlay/releases/download/${PN}/${P}-deps.tar.xz
 "
 S="${WORKDIR}"

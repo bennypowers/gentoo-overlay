@@ -3,7 +3,6 @@
 
 EAPI=8
 
-inherit toolchain-funcs
 
 DESCRIPTION="Extremely fast JavaScript runtime and package manager"
 HOMEPAGE="https://bun.sh https://github.com/oven-sh/bun"
