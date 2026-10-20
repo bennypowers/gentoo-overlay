@@ -75,7 +75,7 @@ If you edit an ebuild that exists on origin, you **must** create a new revision 
 4. Commit only the new revision (not the old one)
 
 Git hooks in `hooks/` run pkgcheck automatically on commit and push.
-To install them: `git config core.hooksPath hooks`
+To install them: `git config core.hooksPath .githooks`
 
 ## Pre-flight checks
 

@@ -10,7 +10,7 @@ A Gentoo overlay for packages that haven't herded their way into `::gentoo` or `
 ## Setup
 
 ```bash
-git config core.hooksPath hooks   # QA checks on commit and push
+git config core.hooksPath .githooks   # QA checks on commit and push
 ```
 
 ## Larry
