@@ -6,8 +6,6 @@
 		<name>Benny Powers</name>
 	</maintainer>
 	<use>
-		<flag name="audio">Pull in sci-ml/torchaudio for audio model
-			support (note: torchaudio is not yet packaged)</flag>
 		<flag name="cuda">Enable NVIDIA CUDA support via sci-ml/pytorch
 			and build the comfy-aimdo CUDA backend</flag>
 		<flag name="migraphx">Enable AMD MIGraphX inference support</flag>

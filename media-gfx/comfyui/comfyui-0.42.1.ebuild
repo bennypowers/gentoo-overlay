@@ -15,7 +15,9 @@ S="${WORKDIR}/ComfyUI-${PV}"
 LICENSE="GPL-3"
 SLOT="0"
 KEYWORDS="~amd64"
-IUSE="audio rocm cuda migraphx"
+# audio USE removed: sci-ml/torchaudio is not packaged in ::gentoo;
+# it exists in several overlays if needed again
+IUSE="rocm cuda migraphx"
 REQUIRED_USE="${PYTHON_REQUIRED_USE}"
 
 RDEPEND="
@@ -55,7 +57,6 @@ RDEPEND="
 	>=sci-ml/transformers-4.50.3[${PYTHON_SINGLE_USEDEP}]
 	sci-ml/pytorch[${PYTHON_SINGLE_USEDEP}]
 	sci-ml/torchvision[${PYTHON_SINGLE_USEDEP}]
-	audio? ( sci-ml/torchaudio[${PYTHON_SINGLE_USEDEP}] )
 	rocm? ( sci-ml/torchvision[rocm] )
 	cuda? ( sci-ml/torchvision[cuda] )
 	$(python_gen_cond_dep '~dev-python/comfy-aimdo-0.5.6[${PYTHON_USEDEP},cuda(-)?,rocm(-)?]')

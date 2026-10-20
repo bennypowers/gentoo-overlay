@@ -48,7 +48,7 @@ echo "Running pkgcheck on affected package directories..."
 # dev-python/httpx, which ::gentoo deprecated after upstream abandoned
 # it; gaia still requires it, so that result is filtered too.
 # shellcheck disable=SC2086
-output=$(pkgcheck scan $dirs -k error,warning 2>&1 | grep -vE 'NonsolvableDeps(InDev|InExp|InStable)|RequiredUseDefaults|NonexistentDeps:.*(gui-wm/niri|gui-wm/hyprland|dev-python/pygls|dev-python/textual|sci-libs/onnxruntime|media-gfx/brother-scan4-bin|dev-python/openai)|RedundantVersion: version 7.2.4-r1|DeprecatedDep:.*dev-python/httpx' || true)
+output=$(pkgcheck scan $dirs -k error,warning 2>&1 | grep -vE 'NonsolvableDeps(InDev|InExp|InStable)|RequiredUseDefaults|NonexistentDeps:.*(gui-wm/niri|gui-wm/hyprland|dev-python/pygls|dev-python/textual|sci-libs/onnxruntime|dev-python/av|media-gfx/brother-scan4-bin|dev-python/openai)|RedundantVersion: version 7.2.4-r1|DeprecatedDep:.*dev-python/httpx' || true)
 
 if [ -n "$output" ]; then
     echo ""

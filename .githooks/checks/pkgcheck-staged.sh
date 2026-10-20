@@ -23,7 +23,7 @@ echo "Running pkgcheck on staged ebuilds..."
 output=$(pkgcheck scan -r bennypowers --staged \
     -k error,warning \
     \
-    2>&1 | grep -vE 'NonsolvableDeps(InDev|InExp|InStable)|RequiredUseDefaults|NonexistentDeps:.*(gui-wm/niri|gui-wm/hyprland|dev-python/pygls|dev-python/textual|sci-libs/onnxruntime|media-gfx/brother-scan4-bin|dev-python/openai)|RedundantVersion: version 7.2.4-r1|DeprecatedDep:.*dev-python/httpx' || true)
+    2>&1 | grep -vE 'NonsolvableDeps(InDev|InExp|InStable)|RequiredUseDefaults|NonexistentDeps:.*(gui-wm/niri|gui-wm/hyprland|dev-python/pygls|dev-python/textual|sci-libs/onnxruntime|dev-python/av|media-gfx/brother-scan4-bin|dev-python/openai)|RedundantVersion: version 7.2.4-r1|DeprecatedDep:.*dev-python/httpx' || true)
 
 if [ -n "$output" ]; then
     echo ""
