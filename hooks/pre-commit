@@ -10,3 +10,4 @@ run_check() {
 }
 
 run_check pkgcheck-staged.sh
+run_check pkgcheck-package-dirs.sh
