@@ -98,7 +98,7 @@ src_prepare() {
 
 src_configure() {
 	# for "lrelease"
-	local PATH="${PATH}:$(qt6_get_bindir)"
+	local PATH="${PATH}:$(qt_get_bindir 6)"
 
 	local mycmakeargs=(
 		-DBUILD_LIB=ON
