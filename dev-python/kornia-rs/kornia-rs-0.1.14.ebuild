@@ -1543,10 +1543,10 @@ DISTUTILS_EXT=1
 DISTUTILS_USE_PEP517=maturin
 PYTHON_COMPAT=( python3_{11..14} )
 
-inherit cargo distutils-r1 pypi
-
 MY_PN="kornia_rs"
 PYPI_PN="kornia_rs"
+
+inherit cargo distutils-r1 pypi
 
 DESCRIPTION="Low-level computer vision library in Rust with Python bindings"
 HOMEPAGE="https://github.com/kornia/kornia-rs"

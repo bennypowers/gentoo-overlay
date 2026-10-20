@@ -5,7 +5,7 @@ EAPI=8
 CMAKE_MAKEFILE_GENERATOR="emake"
 CMAKE_BUILD_TYPE=Release
 
-inherit cmake flag-o-matic toolchain-funcs
+inherit cmake flag-o-matic qt-utils shell-completion toolchain-funcs
 
 DESCRIPTION="GREYC's Magic Image Converter"
 HOMEPAGE="https://gmic.eu/

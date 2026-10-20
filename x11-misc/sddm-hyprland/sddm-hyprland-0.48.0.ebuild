@@ -3,12 +3,9 @@
 
 EAPI=8
 
-inherit git-r3
-
 DESCRIPTION="SDDM configuration for Hyprland compositor"
 HOMEPAGE="https://github.com/HyDE-Project/sddm-hyprland"
-EGIT_REPO_URI="https://github.com/HyDE-Project/sddm-hyprland.git"
-EGIT_COMMIT="v${PV}"
+SRC_URI="https://github.com/HyDE-Project/sddm-hyprland/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
 
 LICENSE="GPL-3"
 SLOT="0"

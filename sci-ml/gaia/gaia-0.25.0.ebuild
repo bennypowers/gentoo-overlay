@@ -62,7 +62,7 @@ RDEPEND="
 		$(python_gen_cond_dep '
 			>=dev-python/fastapi-0.115.0[${PYTHON_USEDEP}]
 			>=dev-python/uvicorn-0.32.0[${PYTHON_USEDEP}]
-			>=dev-python/httpx-0.27.0[${PYTHON_USEDEP}]
+			>=dev-python/httpx-0.28.1[${PYTHON_USEDEP}]
 			>=dev-python/psutil-5.9.0[${PYTHON_USEDEP}]
 			dev-python/numpy[${PYTHON_USEDEP}]
 			dev-python/pypdf[${PYTHON_USEDEP}]

@@ -17,11 +17,11 @@ SLOT="0"
 KEYWORDS="~amd64"
 
 RDEPEND="
-	~dev-python/comfyui-workflow-templates-core-0.3.275[${PYTHON_USEDEP}]
-	~dev-python/comfyui-workflow-templates-json-0.1.9[${PYTHON_USEDEP}]
+	~dev-python/comfyui-workflow-templates-core-0.3.382[${PYTHON_USEDEP}]
+	~dev-python/comfyui-workflow-templates-json-0.1.117[${PYTHON_USEDEP}]
 	~dev-python/comfyui-workflow-templates-media-api-0.3.84[${PYTHON_USEDEP}]
 	~dev-python/comfyui-workflow-templates-media-video-0.3.101[${PYTHON_USEDEP}]
 	~dev-python/comfyui-workflow-templates-media-image-0.3.160[${PYTHON_USEDEP}]
 	~dev-python/comfyui-workflow-templates-media-other-0.3.229[${PYTHON_USEDEP}]
-	~dev-python/comfyui-wft-media-assets01-0.1.5[${PYTHON_USEDEP}]
+	~dev-python/comfyui-wft-media-assets01-0.1.48[${PYTHON_USEDEP}]
 "
