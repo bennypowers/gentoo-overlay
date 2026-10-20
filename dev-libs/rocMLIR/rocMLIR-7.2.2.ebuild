@@ -47,48 +47,35 @@ src_prepare() {
 
 src_configure() {
 	local mycmakeargs=(
+		-DCMAKE_SKIP_INSTALL_RPATH=OFF
+		-DCMAKE_INSTALL_RPATH=""
 		-DCMAKE_INSTALL_LIBDIR="$(get_libdir)"
-		# AddLLVM.cmake installs MLIR/Rock targets to lib${LLVM_LIBDIR_SUFFIX},
-		# ignoring CMAKE_INSTALL_LIBDIR; the suffix is what lands them in
-		# lib64. The 7.1 ebuild's warning against this applied to the
-		# fat-archive build (MRI script expected lib/); we build shared only.
-		-DLLVM_LIBDIR_SUFFIX=64
+		# Do NOT set LLVM_LIBDIR_SUFFIX -- it breaks the fat archive build
+		# by making bundled LLVM use lib64/ while the MRI script expects lib/.
+		# The bundled LLVM is internal only; CMAKE_INSTALL_LIBDIR controls
+		# the installed library path. Static archives in usr/lib do not trip
+		# multilib-strict (it only denies shared libs there).
+		# Build bundled LLVM/MLIR as static libs so the fat archive
+		# (librockCompiler.a) can combine them into a self-contained unit.
+		# The FAT branch also carries the entire export machinery: package
+		# config, rocMLIR::rockCompiler target, and the full header set;
+		# shared builds install none of those, and shipping the shared
+		# component libraries would put a second LLVM (22) next to comgr's
+		# libLLVM.so.23 in hipRTC processes with interposable symbols.
+		-DBUILD_SHARED_LIBS=OFF
+		-DBUILD_FAT_LIBROCKCOMPILER=ON
 		-DCMAKE_C_COMPILER="${EPREFIX}/usr/lib/llvm/${LLVM_SLOT}/bin/clang"
 		-DCMAKE_CXX_COMPILER="${EPREFIX}/usr/lib/llvm/${LLVM_SLOT}/bin/clang++"
 		# Need build-tree rpaths so internal llvm-min-tblgen can find
 		# libLLVMTableGen.so; strip rpaths only at install time.
 		-DCMAKE_SKIP_BUILD_RPATH=OFF
-		-DCMAKE_SKIP_INSTALL_RPATH=ON
 		-DCMAKE_BUILD_TYPE=Release
 		-DCMAKE_INSTALL_PREFIX="${EPREFIX}/usr"
-		# FAT static archive requires static libs which Gentoo doesn't build;
-		# the shared libMLIRRockThin.so provides the same functionality.
-		-DBUILD_FAT_LIBROCKCOMPILER=OFF
 		-DBUILD_TESTING=$(usex test ON OFF)
 		-Wno-dev
 	)
 
 	cmake_src_configure
-}
-
-src_install() {
-	cmake_src_install
-
-	# The shared-only build (BUILD_FAT_LIBROCKCOMPILER=OFF) installs no
-	# headers and no package configuration: upstream's export machinery
-	# is FAT-branch-only. Install the headers find_package consumers
-	# need and a hand-authored config defining rocMLIR::rockCompiler
-	# against the shared libraries. Drop both when upstream exports
-	# shared builds natively (see rocMLIRConfig.cmake).
-	insinto /usr/include/rocmlir/mlir-c
-	doins -r "${S}/external/llvm-project/mlir/include/mlir-c/."
-	insinto /usr/include/rocmlir/mlir-c
-	doins -r "${S}/mlir/include/mlir-c/."
-	insinto /usr/include/rocmlir/mlir
-	doins -r "${S}/mlir/include/mlir/."
-
-	insinto /usr/$(get_libdir)/cmake/rocMLIR
-	doins "${FILESDIR}"/rocMLIRConfig.cmake "${FILESDIR}"/rocMLIRConfigVersion.cmake
 }
 
 src_test() {
