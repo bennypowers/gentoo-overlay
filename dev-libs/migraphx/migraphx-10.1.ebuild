@@ -31,11 +31,11 @@ BDEPEND="
 "
 
 # rocMLIR is needed by the hipRTC path (default ON) for rockCompiler;
-# upstream rocMLIR stalled at 7.x but migraphx only requires >=1.0.0,
-# so the dep is not slot-pinned
+# subslot-bound (:=) so ABI changes (e.g. 7.1 -> 7.2 shared-lib model)
+# trigger a rebuild
 DEPEND="
 	>=dev-cpp/msgpack-cxx-6.0.0
-	dev-libs/rocMLIR
+	dev-libs/rocMLIR:=
 	dev-util/hip:${SLOT}
 	sci-libs/rocBLAS:${SLOT}
 	sci-libs/miopen:${SLOT}
