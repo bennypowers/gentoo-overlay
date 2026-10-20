@@ -43,18 +43,16 @@ src_prepare() {
 	# fix the script to include the lib/ component.
 	sed -i 's|rocm_path / "amdgcn"|rocm_path / "lib" / "amdgcn"|' \
 		mlir/lib/Target/AmdDeviceLibsIncGen.py || die
-
-	# rocmlir-lib hardcodes DESTINATION lib, ignoring
-	# CMAKE_INSTALL_LIBDIR; respect it so libs land in lib64
-	sed -i -e 's|DESTINATION lib/llvm)|DESTINATION ${CMAKE_INSTALL_LIBDIR}/llvm)|' \
-		-e 's|DESTINATION lib)|DESTINATION ${CMAKE_INSTALL_LIBDIR})|' \
-		-e 's|ARCHIVE DESTINATION lib$|ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}|' \
-		mlir/tools/rocmlir-lib/CMakeLists.txt || die
 }
 
 src_configure() {
 	local mycmakeargs=(
 		-DCMAKE_INSTALL_LIBDIR="$(get_libdir)"
+		# AddLLVM.cmake installs MLIR/Rock targets to lib${LLVM_LIBDIR_SUFFIX},
+		# ignoring CMAKE_INSTALL_LIBDIR; the suffix is what lands them in
+		# lib64. The 7.1 ebuild's warning against this applied to the
+		# fat-archive build (MRI script expected lib/); we build shared only.
+		-DLLVM_LIBDIR_SUFFIX=64
 		-DCMAKE_C_COMPILER="${EPREFIX}/usr/lib/llvm/${LLVM_SLOT}/bin/clang"
 		-DCMAKE_CXX_COMPILER="${EPREFIX}/usr/lib/llvm/${LLVM_SLOT}/bin/clang++"
 		# Need build-tree rpaths so internal llvm-min-tblgen can find
