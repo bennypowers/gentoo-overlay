@@ -5,7 +5,7 @@ EAPI=8
 
 LLVM_COMPAT=( {18..23} )
 
-inherit cmake git-r3 llvm-r2 systemd toolchain-funcs
+inherit cmake flag-o-matic git-r3 llvm-r2 systemd toolchain-funcs
 
 DESCRIPTION="Official inference framework for 1-bit LLMs"
 HOMEPAGE="https://github.com/microsoft/BitNet"

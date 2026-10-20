@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription lang="en">
+		AMDMIGraphX is AMD's graph inference engine. It accelerates machine
+		inference by optimizing computational graphs, applying high performance
+		kernels and, where beneficial, compiling for specific targets.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">ROCm/AMDMIGraphX</remote-id>
+	</upstream>
+</pkgmetadata>
