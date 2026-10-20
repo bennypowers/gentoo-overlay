@@ -10,9 +10,13 @@ fi
 
 echo "Running pkgcheck on staged ebuilds..."
 
+# NonsolvableDeps* and RequiredUseDefaults fire on musl/hurd/x32 profiles
+# for deps that cannot exist there (nvidia-drivers, systemd, nodejs); this
+# overlay only targets amd64 glibc, so those results are filtered out here.
 output=$(pkgcheck scan -r bennypowers --staged \
     -k error,warning \
-    2>&1)
+    \
+    2>&1 | grep -vE 'NonsolvableDeps(InDev|InExp|InStable)|RequiredUseDefaults' || true)
 
 if [ -n "$output" ]; then
     echo ""
