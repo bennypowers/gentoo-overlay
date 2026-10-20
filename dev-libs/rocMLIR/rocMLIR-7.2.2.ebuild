@@ -71,6 +71,26 @@ src_configure() {
 	cmake_src_configure
 }
 
+src_install() {
+	cmake_src_install
+
+	# The shared-only build (BUILD_FAT_LIBROCKCOMPILER=OFF) installs no
+	# headers and no package configuration: upstream's export machinery
+	# is FAT-branch-only. Install the headers find_package consumers
+	# need and a hand-authored config defining rocMLIR::rockCompiler
+	# against the shared libraries. Drop both when upstream exports
+	# shared builds natively (see rocMLIRConfig.cmake).
+	insinto /usr/include/rocmlir/mlir-c
+	doins -r "${S}/external/llvm-project/mlir/include/mlir-c/."
+	insinto /usr/include/rocmlir/mlir-c
+	doins -r "${S}/mlir/include/mlir-c/."
+	insinto /usr/include/rocmlir/mlir
+	doins -r "${S}/mlir/include/mlir/."
+
+	insinto /usr/$(get_libdir)/cmake/rocMLIR
+	doins "${FILESDIR}"/rocMLIRConfig.cmake "${FILESDIR}"/rocMLIRConfigVersion.cmake
+}
+
 src_test() {
 	cmake_src_test
 }
