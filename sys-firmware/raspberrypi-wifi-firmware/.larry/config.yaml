@@ -1,0 +1,6 @@
+upstream:
+  # Tags look like pios/1%20260519-1_bpo13+1+rpt1: "%20" is a space, "1" is a
+  # Debian series, and 260519 is a YYMMDD date. Expand it to the YYYYMMDD form
+  # the ebuild uses (20260519).
+  tag_match: '^pios/1%20(?P<DATE>\d{6})-.+$'
+  version_template: '20${DATE}'
