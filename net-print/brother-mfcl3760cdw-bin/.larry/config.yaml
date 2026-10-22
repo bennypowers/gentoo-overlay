@@ -1,0 +1,4 @@
+upstream:
+  # Vendor-only RPM; Brother exposes no machine-readable version feed.
+  # Check https://support.brother.com manually.
+  check: false

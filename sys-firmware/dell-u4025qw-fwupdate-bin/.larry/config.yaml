@@ -1,0 +1,5 @@
+upstream:
+  # Vendor-only .deb behind Akamai bot protection; no machine-readable feed.
+  # Check https://www.dell.com/support/home/en-us/drivers/driversdetails?driverid=nvpvj
+  # manually. (Current page as of 2026-10-22: M3T105, A04, 2025-10-17.)
+  check: false
