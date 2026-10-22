@@ -1,0 +1,4 @@
+upstream:
+  # Upstream publishes tags (3.50.11) much more often than GitHub releases
+  # (last release: 3.50.2), so track the tag stream.
+  strategy: tags
