@@ -59,22 +59,6 @@ src_install() {
 		doins "${overlay_src}"/*.dtb*
 		[[ -f "${overlay_src}/README" ]] && doins "${overlay_src}/README"
 	fi
-
-	# --- Top-level compatibility fallbacks ---
-	# Portage-owned so a failed or retried merge cannot leave the package
-	# half-installed the way a pkg_postinst copy does.
-	insinto /boot
-	newins "${image_src}" kernel_2712.img
-
-	if [[ -d "${dtb_src}" ]]; then
-		doins "${dtb_src}"/*.dtb
-	fi
-
-	if [[ -d "${overlay_src}" ]]; then
-		insinto /boot/overlays
-		doins "${overlay_src}"/*.dtb*
-		[[ -f "${overlay_src}/README" ]] && doins "${overlay_src}/README"
-	fi
 }
 
 pkg_pretend() {
@@ -88,6 +72,28 @@ pkg_pretend() {
 
 pkg_postinst() {
 	kernel-build_pkg_postinst
+
+	local boot_dir="${EROOT}/boot/rpi-${KV_FULL}"
+
+	# Top-level compatibility fallbacks. These paths are shared by every
+	# installed kernel slot, so collision-protect forbids owning them in
+	# more than one package. Failures are non-fatal: the versioned layout
+	# is authoritative, and dying here would leave the package recorded
+	# with an already-consumed build image, breaking every retry.
+	if [[ -f "${boot_dir}/kernel_2712.img" ]]; then
+		cp -f "${boot_dir}/kernel_2712.img" "${EROOT}/boot/kernel_2712.img" \
+			|| ewarn "Failed to update /boot/kernel_2712.img"
+	else
+		ewarn "Missing ${boot_dir}/kernel_2712.img; top-level fallback not updated"
+	fi
+
+	if [[ -d "${boot_dir}/overlays" ]]; then
+		rm -rf "${EROOT}/boot/overlays"
+		cp -rf "${boot_dir}/overlays" "${EROOT}/boot/overlays" \
+			|| ewarn "Failed to update /boot/overlays"
+	else
+		ewarn "Missing ${boot_dir}/overlays; top-level fallback not updated"
+	fi
 
 	ewarn ""
 	ewarn "Boot layout uses version-isolated directories (no symlinks in /boot):"
