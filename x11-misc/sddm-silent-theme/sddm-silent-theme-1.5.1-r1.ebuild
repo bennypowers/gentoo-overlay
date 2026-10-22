@@ -7,18 +7,18 @@ DESCRIPTION="Customizable SDDM theme with multiple presets"
 HOMEPAGE="https://github.com/uiriansan/SilentSDDM"
 SRC_URI="https://github.com/uiriansan/SilentSDDM/archive/refs/tags/v${PV}.tar.gz -> ${P}.tar.gz"
 
+S="${WORKDIR}/SilentSDDM-${PV}"
+
 LICENSE="GPL-3"
 SLOT="0"
 KEYWORDS="~amd64"
 
 RDEPEND="
-	>=x11-misc/sddm-0.21.0
+	>=gui-apps/sddm-0.21.0
 	dev-qt/qtsvg:6
 	dev-qt/qtvirtualkeyboard:6
 	dev-qt/qtmultimedia:6
 "
-
-S="${WORKDIR}/SilentSDDM-${PV}"
 
 src_install() {
 	insinto /usr/share/sddm/themes/silent
