@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/metadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<longdescription>
+		Strata is an inference engine for Qwen3.8-Flash-Next on consumer NVIDIA and AMD
+		hardware, with an OpenAI/Anthropic-compatible API on localhost, an optional
+		terminal client, and discovery of the model files it runs.
+		The engine is built from source for the ROCm HIP backend and installed as a
+		component package that the terminal verifies and starts.
+	</longdescription>
+	<upstream>
+		<remote-id type="github">Niko1221/Strata</remote-id>
+	</upstream>
+</pkgmetadata>
