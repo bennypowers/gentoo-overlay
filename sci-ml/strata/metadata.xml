@@ -15,4 +15,7 @@
 	<upstream>
 		<remote-id type="github">Niko1221/Strata</remote-id>
 	</upstream>
+	<use>
+		<flag name="vision">Build the picture readers: the portable CPU reader and the HIP reader for the selected AMD GPU targets</flag>
+	</use>
 </pkgmetadata>

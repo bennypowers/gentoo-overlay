@@ -7,7 +7,7 @@ ROCM_SKIP_GLOBALS=1
 # upstream builds the engine with CMAKE_BUILD_TYPE=Release (-O3, no -g); RelWithDebInfo (the eclass default)
 # would halve the speed flags and double the installed size of a binary that portage cannot strip.
 CMAKE_BUILD_TYPE=Release
-inherit cmake rocm
+inherit cmake multiprocessing rocm
 
 # llama.cpp is taken from a pinned commit, not from a release: Strata builds its own prompt kernels and the
 # ggml CPU experts from that exact tree (third_party/ggml/VERSION.txt upstream).
@@ -22,6 +22,12 @@ SRC_URI="
 "
 S="${WORKDIR}/Strata-${PV}"
 LLAMA_S="${WORKDIR}/${LLAMA_P}"
+
+# tools/vision is a CMake project of its own: the engine build does not add it, and upstream ships both readers in
+# its Linux HIP package (the portable CPU one, plus the HIP one for the packaged gfx targets).
+VISION_S="${S}/tools/vision"
+VISION_BUILD="${WORKDIR}/vision-build"
+VISION_HIP_BUILD="${WORKDIR}/vision-hip-build"
 
 LICENSE="MIT"
 SLOT="0"
@@ -40,7 +46,7 @@ ROCM_USEDEP_OPTFLAGS=${IUSE_TARGETS[*]/%/(-)?}
 ROCM_USEDEP=${ROCM_USEDEP_OPTFLAGS// /,}
 ROCM_REQUIRED_USE=" || ( ${IUSE_TARGETS[*]} )"
 
-IUSE="${IUSE_TARGETS[*]}"
+IUSE="+vision ${IUSE_TARGETS[*]}"
 REQUIRED_USE="${ROCM_REQUIRED_USE}"
 
 # The engine component manifest records the SHA-256 of every file and the terminal verifies it at every
@@ -110,9 +116,39 @@ src_configure() {
 	cmake_src_configure
 }
 
+build_vision_reader() {
+	local build_dir=${1}
+	shift
+	cmake -G Ninja -S "${VISION_S}" -B "${build_dir}" \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DLLAMA_DIR="${LLAMA_S}" \
+		-DSTRATA_PORTABLE=ON \
+		"$@" || die
+	cmake --build "${build_dir}" --target strata-vision \
+		--parallel "$(get_makeopts_jobs)" || die
+}
+
 src_compile() {
 	# `all` carries the parity and benchmark executables; only the programs the terminal starts are needed.
 	cmake_build strata strata-device
+
+	if use vision; then
+		local hip_archs
+		printf -v hip_archs '%s;' "${AMDGPU_TARGETS[@]}"
+		hip_archs=${hip_archs%;}
+
+		# the portable CPU reader: the fallback that needs nothing from the GPU runtime
+		build_vision_reader "${VISION_BUILD}" \
+			-DSTRATA_VISION_CUDA=OFF \
+			-DSTRATA_VISION_HIP=OFF \
+			-DSTRATA_VISION_SYCL=OFF
+		# the HIP reader for the same gfx targets as the engine
+		build_vision_reader "${VISION_HIP_BUILD}" \
+			-DSTRATA_VISION_CUDA=OFF \
+			-DSTRATA_VISION_HIP=ON \
+			-DSTRATA_VISION_HIP_ARCHS="${hip_archs}" \
+			-DCMAKE_HIP_ARCHITECTURES="${hip_archs}"
+	fi
 }
 
 src_install() {
@@ -142,18 +178,28 @@ src_install() {
 	local stage="${T}/engine-stage"
 	mkdir -p "${stage}" || die
 	cp "${BUILD_DIR}/strata" "${BUILD_DIR}/strata-device" "${stage}/" || die
+	if use vision; then
+		cp "${VISION_BUILD}/bin/strata-vision" \
+			"${VISION_HIP_BUILD}/bin/strata-vision-hip" "${stage}/" || die
+	fi
 
 	local arch_json
 	arch_json=$(printf '"%s", ' "${AMDGPU_TARGETS[@]}")
 	arch_json=${arch_json%, }
-	cat > "${stage}/BUILD.json" <<-EOF || die
 	{
-	 "version": "${engine_pv}",
-	 "source": "Gentoo sci-ml/strata-${PV}",
-	 "portable": true,
-	 "archs": [${arch_json}]
-	}
-	EOF
+		printf '{\n'
+		printf ' "version": "%s",\n' "${engine_pv}"
+		printf ' "source": "Gentoo sci-ml/%s",\n' "${PF}"
+		printf ' "portable": true,\n'
+		if use vision; then
+			printf ' "vision": "gpu",\n'
+			printf ' "vision_cpu": "strata-vision",\n'
+			printf ' "vision_gpu": "strata-vision-hip",\n'
+			printf ' "vision_archs": [%s],\n' "${arch_json}"
+		fi
+		printf ' "archs": [%s]\n' "${arch_json}"
+		printf '}\n'
+	} > "${stage}/BUILD.json" || die
 
 	# records the system hipBLASLt version (needed by the package check) and copies matching tuning tables, if any
 	python3 -I packaging/stage_tuning.py \
@@ -162,9 +208,11 @@ src_install() {
 		--rocm "${EPREFIX}/usr" || die
 
 	# The ROCm libraries are provided by the RDEPEND packages, not bundled: name them as system libraries.
+	local -a staged_bins=( "${stage}/strata" "${stage}/strata-device" )
+	use vision && staged_bins+=( "${stage}/strata-vision" "${stage}/strata-vision-hip" )
 	local -a allow=()
 	local lib
-	for lib in $(readelf -d "${stage}/strata" "${stage}/strata-device" |
+	for lib in $(readelf -d "${staged_bins[@]}" |
 			sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p' | sort -u); do
 		case ${lib} in
 			libamdhip64.so.*|libhipblas.so.*|libhipblaslt.so.*|librocblas.so.*|libamd_comgr.so.*|libhiprtc.so.*)
@@ -203,5 +251,10 @@ pkg_postinst() {
 	elog "'install-file' need a user-owned --components-dir. To self-manage the engine, export"
 	elog "STRATA_COMPONENTS_DIR to a per-user folder and set STRATA_PACKAGE_MANAGED=0."
 	elog
-	elog "This build has no picture reader (text-only)."
+	if use vision; then
+		elog "Pictures are read by the portable CPU reader (strata-vision) or the HIP"
+		elog "reader (strata-vision-hip) for: ${AMDGPU_TARGETS[*]}."
+	else
+		elog "Built with USE=-vision: no picture reader (text-only)."
+	fi
 }
