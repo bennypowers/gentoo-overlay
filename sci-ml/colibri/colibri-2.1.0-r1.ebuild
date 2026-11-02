@@ -36,13 +36,19 @@ RDEPEND="
 		)
 	)
 	cuda? ( dev-util/nvidia-cuda-toolkit )
-	rocm? ( dev-util/hip )
+	rocm? (
+		dev-util/hip
+		sci-libs/rocWMMA
+	)
 	vulkan? ( media-libs/vulkan-loader )
 "
 DEPEND="${RDEPEND}"
 BDEPEND="
 	cuda? ( dev-util/nvidia-cuda-toolkit )
-	rocm? ( dev-util/hip )
+	rocm? (
+		dev-util/hip
+		sci-libs/rocWMMA
+	)
 	vulkan? (
 		dev-util/vulkan-headers
 		media-libs/shaderc
