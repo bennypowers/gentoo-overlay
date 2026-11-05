@@ -17,11 +17,6 @@ KEYWORDS="~amd64 ~arm64"
 DEPEND=">=dev-lang/go-1.23"
 RDEPEND=""
 
-src_prepare() {
-	default
-	mv "${WORKDIR}/vendor" "${S}/vendor" || die
-}
-
 src_compile() {
 	export GOFLAGS="-mod=vendor"
 	export CGO_ENABLED=0
