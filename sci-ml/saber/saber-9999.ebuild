@@ -5,20 +5,13 @@ EAPI=8
 
 RUST_MIN_VER="1.85.0"
 
-inherit cargo
+inherit cargo git-r3
 
 DESCRIPTION="Rust LLM inference engine for AMD Radeon AI PRO R9700 (gfx1201 / RDNA4)"
 HOMEPAGE="https://github.com/GGZ14/saber-engine"
-
-# No release tags upstream: pin a commit. Bump this (and re-run
-# .larry/prepare.sh) when the tree moves; a revision bump is required
-# once this ebuild has been pushed.
-COMMIT="c8a1e84b39e73363495e549d480a6f6c3893800c"
-
-SRC_URI="
-	https://github.com/GGZ14/saber-engine/archive/${COMMIT}.tar.gz -> ${P}.tar.gz
-	https://github.com/bennypowers/gentoo-overlay/releases/download/${PN}/${P}-crates.tar.xz
-"
+EGIT_REPO_URI="https://github.com/GGZ14/saber-engine.git"
+EGIT_BRANCH="main"
+EGIT_LIVECTHOUR="12"
 
 LICENSE="Apache-2.0"
 # Dependent crate licenses
@@ -29,33 +22,20 @@ LICENSE+="
 	|| ( BSD-2 MIT )
 "
 SLOT="0"
-KEYWORDS="~amd64"
+KEYWORDS=""
 
 # The engine dlopens libamdhip64.so.7 (ROCm 7.x HIP) at run time via
 # --hip-lib; there is no portage ebuild for the HIP runtime, so no
 # RDEPEND on it. Weights are runtime-downloaded packs, not distfiles.
 
 src_unpack() {
-	cargo_gen_config
-	# Commit tarballs unpack as ${PN}-engine-${COMMIT}; rename to ${P}.
-	tar -xf "${DISTDIR}/${P}.tar.gz" -C "${WORKDIR}" || die
-	mv "${WORKDIR}/${PN}-engine-${COMMIT}" "${S}" || die
-	# Vendored crates (see .larry/prepare.sh); unpacks ${P}/vendor into ${S}.
-	tar -xf "${DISTDIR}/${P}-crates.tar.xz" -C "${WORKDIR}" || die
-}
+	git-r3_src_unpack
 
-src_prepare() {
-	default
-
-	# Point cargo at the vendored crates; the sandbox has no network.
-	mkdir -p .cargo || die
-	cat > .cargo/config.toml <<-EOF || die
-		[source.crates-io]
-		replace-with = "vendored-sources"
-
-		[source.vendored-sources]
-		directory = "vendor"
-	EOF
+	# `cargo fetch`/`cargo vendor` into the vendor dir and generate a
+	# .cargo/config.toml pinning crates to it for offline builds.
+	cd "${S}" || die
+	cargo_live_src_unpack
+	cd "${WORKDIR}" || die
 }
 
 src_compile() {
