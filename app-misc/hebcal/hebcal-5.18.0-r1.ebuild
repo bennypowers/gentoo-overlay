@@ -15,14 +15,14 @@ SLOT="0"
 KEYWORDS="~amd64"
 
 DEPEND=">=dev-lang/go-1.13"
-RDEPEND=""
 
 src_prepare() {
 	default
-	# Upstream v5.9.7 ships vendored hebcal-go v0.11.0 but the code uses
-	# event.UserEvent which was added in v0.11.1; replace with our tarball.
+	# Upstream ships a vendor tree built with an older Go (no "## explicit"
+	# markers); replace it wholesale with the one from our deps tarball,
+	# whose top-level ${P}/ prefix would otherwise nest it inside ${S}.
 	rm -rf vendor || die
-	mv "${WORKDIR}/vendor" "${S}/vendor" || die
+	tar xaf "${DISTDIR}/${P}-deps.tar.xz" -C "${S}" --strip-components=1 || die
 }
 
 src_compile() {
