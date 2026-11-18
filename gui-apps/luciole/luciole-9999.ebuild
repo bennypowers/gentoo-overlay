@@ -47,7 +47,7 @@ RDEPEND="
 	zeroconf? ( gnome-base/gvfs[zeroconf] )
 	network? ( net-libs/glib-networking )
 	media-video/ffmpeg
-	media-libs/ffmpegthumbnailer
+	media-video/ffmpegthumbnailer
 	app-text/poppler
 	app-arch/7zip
 	sys-apps/xdg-desktop-portal
