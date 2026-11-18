@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE pkgmetadata SYSTEM "https://www.gentoo.org/dtd/pkgmetadata.dtd">
+<pkgmetadata>
+	<maintainer type="person">
+		<email>web@bennypowers.com</email>
+		<name>Benny Powers</name>
+	</maintainer>
+	<upstream>
+		<remote-type>github</remote-type>
+		<remote-id>noctalia-dev/luciole</remote-id>
+	</upstream>
+	<use>
+		<flag name="network">Add SFTP and WebDAV network browsing (GVfs backends and GIO TLS)</flag>
+		<flag name="samba">Add SMB network browsing (GVfs SMB backend)</flag>
+		<flag name="zeroconf">Add DNS-SD service discovery for network shares (GVfs DNS-SD backend)</flag>
+	</use>
+</pkgmetadata>
