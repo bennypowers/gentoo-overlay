@@ -1,0 +1,24 @@
+--- a/engine/include/strata/kernels/hip_unsloth_wmma.hpp
++++ b/engine/include/strata/kernels/hip_unsloth_wmma.hpp
+@@ -182,7 +182,9 @@
+         return z;
+     }
+     __device__ static __forceinline__ f32x8_t mma(frag_t a, frag_t b, f32x8_t c) {
+-        return __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32_gfx12(a, b, c);
++        using i16x8_t = short __attribute__((ext_vector_type(8)));
++        return __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32_gfx12(__builtin_bit_cast(i16x8_t, a),
++                                                                 __builtin_bit_cast(i16x8_t, b), c);
+     }
+ #elif STRATA_HIP_UNSLOTH_WMMA_GFX11
+     static constexpr int kFragElems = 16;
+@@ -200,7 +202,9 @@
+         return z;
+     }
+     __device__ static __forceinline__ f32x8_t mma(frag_t a, frag_t b, f32x8_t c) {
+-        return __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32(a, b, c);
++        using i16x16_t = short __attribute__((ext_vector_type(16)));
++        return __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32(__builtin_bit_cast(i16x16_t, a),
++                                                          __builtin_bit_cast(i16x16_t, b), c);
+     }
+ #else
+     static constexpr int kFragElems = 8;
